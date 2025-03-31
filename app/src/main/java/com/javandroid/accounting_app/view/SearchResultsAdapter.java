@@ -1,4 +1,4 @@
-package com.javandroid.accounting_app;
+package com.javandroid.accounting_app.view;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -8,6 +8,9 @@ import android.widget.EditText;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.javandroid.accounting_app.R;
+import com.javandroid.accounting_app.model.SearchResult;
 
 import java.util.List;
 
@@ -54,8 +57,8 @@ public class SearchResultsAdapter extends RecyclerView.Adapter<SearchResultsAdap
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
-            editProduct = itemView.findViewById(R.id.editProduct);
-            updateButton = itemView.findViewById(R.id.updateButton);
+//            editProduct = itemView.findViewById(R.id.editProduct);
+//            updateButton = itemView.findViewById(R.id.updateButton);
         }
     }
 }

@@ -2,28 +2,63 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="20dp"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:padding="16dp">
 
     <EditText
         android:id="@+id/searchInput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Enter product name"
-        android:inputType="text" />
+        android:hint="Search product" />
 
     <Button
         android:id="@+id/searchButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Search" />
+
+    <ListView
+        android:id="@+id/listView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Search Product" />
+        android:layout_weight="1"/>
 
-
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/resultsRecyclerView"
+    <EditText
+        android:id="@+id/productNameInput"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp" />
+        android:hint="Product Name" />
+
+    <EditText
+        android:id="@+id/productBarcodeInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Barcode" />
+
+    <EditText
+        android:id="@+id/productSellPriceInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Sell Price"
+        android:inputType="numberDecimal" />
+
+    <EditText
+        android:id="@+id/productBuyPriceInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Buy Price"
+        android:inputType="numberDecimal" />
+
+    <Button
+        android:id="@+id/addProductButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Add/Update Product" />
+
+    <Button
+        android:id="@+id/calculateProfitButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Calculate Profit" />
 
 </LinearLayout>

@@ -1,18 +1,20 @@
 package com.javandroid.accounting_app.model;
 
 public class Order {
-    private int orderId;
-    private int userId;
-    private int productId;
-    private String productName;
-    private double sellPrice;
-    private double buyPrice;
-    private int quantity;
+    private final int orderId;
+    private final int userId;
+    private final int productId;
+    private final String type;
+    private final String productName;
+    private final double sellPrice;
+    private final double buyPrice;
+    private final int quantity;
 
-    public Order(int orderId, int userId, int productId, String productName, double sellPrice, double buyPrice, int quantity) {
+    public Order(int orderId, int userId, String type, int productId, String productName, double sellPrice, double buyPrice, int quantity) {
         this.orderId = orderId;
         this.userId = userId;
         this.productId = productId;
+        this.type = type;
         this.productName = productName;
         this.sellPrice = sellPrice;
         this.buyPrice = buyPrice;
@@ -29,5 +31,9 @@ public class Order {
 
     public double calculateProfit() {
         return (sellPrice - buyPrice) * quantity;
+    }
+
+    public String getType() {
+        return type;
     }
 }

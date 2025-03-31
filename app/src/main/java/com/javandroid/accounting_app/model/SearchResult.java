@@ -1,4 +1,4 @@
-package com.javandroid.accounting_app;
+package com.javandroid.accounting_app.model;
 
 public class SearchResult {
     private final String data;

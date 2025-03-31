@@ -1,6 +1,5 @@
 package com.javandroid.accounting_app.model;
 
-// Represents a Product
 public class Product {
     private int id;
     private String barcode;
@@ -8,15 +7,16 @@ public class Product {
     private double sellPrice;
     private double buyPrice;
 
-    public Product(){
-    }
-    public Product(int id, String barcode, String name, double sellPrice, double buyPrice){
+    // Constructor
+    public Product(int id, String barcode, String name, double sellPrice, double buyPrice) {
         this.id = id;
         this.barcode = barcode;
         this.name = name;
         this.sellPrice = sellPrice;
         this.buyPrice = buyPrice;
     }
+
+    // Getters and Setters
     public int getId() {
         return id;
     }
@@ -56,6 +56,4 @@ public class Product {
     public void setBuyPrice(double buyPrice) {
         this.buyPrice = buyPrice;
     }
-
-    // Constructor, Getters, Setters
 }
