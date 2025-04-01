@@ -1,64 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
+    tools:context=".MainActivity">
 
-    <EditText
-        android:id="@+id/searchInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Search product" />
-
-    <Button
-        android:id="@+id/searchButton"
+    <!-- App Title -->
+    <TextView
+        android:id="@+id/main_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Search" />
+        android:text="Accounting App"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_marginTop="40dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <ListView
-        android:id="@+id/listView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"/>
-
-    <EditText
-        android:id="@+id/productNameInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Product Name" />
-
-    <EditText
-        android:id="@+id/productBarcodeInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Barcode" />
-
-    <EditText
-        android:id="@+id/productSellPriceInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Sell Price"
-        android:inputType="numberDecimal" />
-
-    <EditText
-        android:id="@+id/productBuyPriceInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Buy Price"
-        android:inputType="numberDecimal" />
-
+    <!-- Manage Products Button -->
     <Button
-        android:id="@+id/addProductButton"
-        android:layout_width="match_parent"
+        android:id="@+id/btn_manage_products"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Add/Update Product" />
+        android:text="Manage Products"
+        android:layout_marginTop="24dp"
+        app:layout_constraintTop_toBottomOf="@id/main_title"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginHorizontal="40dp" />
 
+    <!-- View Orders Button -->
     <Button
-        android:id="@+id/calculateProfitButton"
-        android:layout_width="match_parent"
+        android:id="@+id/btn_view_products"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Calculate Profit" />
+        android:text="View products"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/btn_manage_products"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginHorizontal="40dp" />
 
-</LinearLayout>
+    <!-- Floating Action Button to add a new product -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_add_product"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@android:drawable/ic_input_add"
+        android:contentDescription="Add Product"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_margin="16dp" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
