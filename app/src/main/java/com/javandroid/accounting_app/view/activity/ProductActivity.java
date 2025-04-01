@@ -16,6 +16,7 @@ import java.io.IOException;
 public class ProductActivity extends AppCompatActivity {
 
     private ProductViewModel productViewModel;
+
     private ProductAdapter productAdapter;
     private ProductExcelManager productExcelManager;
 
