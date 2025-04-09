@@ -6,6 +6,13 @@
     android:padding="8dp"
     android:background="@android:color/white">
 
+    <!-- RecyclerView to Display Products -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerViewProducts"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
     <TextView
         android:id="@+id/textViewProductName"
         android:layout_width="wrap_content"

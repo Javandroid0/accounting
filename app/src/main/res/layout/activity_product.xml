@@ -5,8 +5,63 @@
     android:orientation="vertical"
     android:padding="16dp">
 
+    <!-- RecyclerView to Display Products -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerViewProducts"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"/>
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+    <!-- Input Fields -->
+    <EditText
+        android:id="@+id/editTextProductId"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Product ID"
+        android:inputType="number"/>
+
+    <EditText
+        android:id="@+id/editTextBarcode"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Barcode"/>
+
+    <EditText
+        android:id="@+id/editTextName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Product Name"/>
+
+    <EditText
+        android:id="@+id/editTextSellPrice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Sell Price"
+        android:inputType="numberDecimal"/>
+
+    <EditText
+        android:id="@+id/editTextBuyPrice"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Buy Price"
+        android:inputType="numberDecimal"/>
+
+    <!-- Action Buttons -->
+    <Button
+        android:id="@+id/buttonAddProduct"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Add Product"/>
+
+    <Button
+        android:id="@+id/buttonUpdateProduct"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Update Product"/>
+
+    <Button
+        android:id="@+id/buttonDeleteProduct"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Delete Product"/>
 </LinearLayout>
