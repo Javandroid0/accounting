@@ -32,13 +32,26 @@ android {
 }
 
 dependencies {
+//
+//    implementation(libs.appcompat) {
+//        exclude(group = "com.intellij", module = "annotations")
+//    }
 
     implementation(libs.appcompat)
+    implementation(libs.constraintlayout)
     implementation(libs.material)
     implementation(libs.activity)
-    implementation(libs.constraintlayout)
-    implementation(libs.poi.ooxml)
+    annotationProcessor(libs.room.compiler)
+//    implementation(libs.room.compiler)
+    implementation(libs.room.runtime)
+    implementation(libs.zxing.android.embedded)
+    implementation(libs.lifecycle.livedata)
+    implementation(libs.lifecycle.viewmodel)
+    implementation(libs.recyclerview)
+//    implementation(libs.annotations)
     testImplementation(libs.junit)
+
     androidTestImplementation(libs.ext.junit)
-    androidTestImplementation(libs.espresso.core)
+
+//    implementation(libs.poi.ooxml)
 }

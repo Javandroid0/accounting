@@ -18,7 +18,7 @@
         android:theme="@style/Theme.Accounting_app"
         tools:targetApi="31">
         <activity
-            android:name=".view.activity.MainActivity"
+            android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -27,8 +27,8 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".view.activity.ProductActivity" />
-        <activity android:name=".viewmodel.ViewProductsActivity" />
+<!--        <activity android:name=".view.activity.ProductActivity" />-->
+<!--        <activity android:name=".viewmodel.ViewProductsActivity" />-->
 
     </application>
 

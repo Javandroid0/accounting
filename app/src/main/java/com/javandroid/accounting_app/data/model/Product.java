@@ -1,22 +1,26 @@
-package com.javandroid.accounting_app.model;
+package com.javandroid.accounting_app.data.model;
 
+import androidx.room.ColumnInfo;
+import androidx.room.Entity;
+import androidx.room.PrimaryKey;
+
+@Entity(tableName = "product")
 public class Product {
+    @PrimaryKey(autoGenerate = true)
     private int id;
+
+    @ColumnInfo(name = "barcode")
     private String barcode;
+
+    @ColumnInfo(name = "name")
     private String name;
+
+    @ColumnInfo(name = "sell_price")
     private double sellPrice;
+
+    @ColumnInfo(name = "buy_price")
     private double buyPrice;
 
-    // Constructor
-    public Product(int id, String barcode, String name, double sellPrice, double buyPrice) {
-        this.id = id;
-        this.barcode = barcode;
-        this.name = name;
-        this.sellPrice = sellPrice;
-        this.buyPrice = buyPrice;
-    }
-
-    // Getters and Setters
     public int getId() {
         return id;
     }
@@ -56,4 +60,6 @@ public class Product {
     public void setBuyPrice(double buyPrice) {
         this.buyPrice = buyPrice;
     }
+
+    // Getters and Setters
 }

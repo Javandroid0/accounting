@@ -1,34 +1,29 @@
-package com.javandroid.accounting_app.view.activity;
+package com.javandroid.accounting_app;
 
-import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
-import android.widget.Button;
+
 import androidx.appcompat.app.AppCompatActivity;
-import com.javandroid.accounting_app.R;
-import com.javandroid.accounting_app.viewmodel.ViewProductsActivity;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
+
+import com.javandroid.accounting_app.ui.fragment.ScannerFragment;
 
 public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_main); // Ensure activity_main.xml exists
 
-        Button buttonOpenProductActivity = findViewById(R.id.btn_manage_products);
-        buttonOpenProductActivity.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startActivity(new Intent(MainActivity.this, ProductActivity.class));
-            }
-        });
-        Button buttonViewProducts = findViewById(R.id.btn_view_products);
+        // Load the ScannerFragment by default
+        if (savedInstanceState == null) {
+            loadFragment(new ScannerFragment());
+        }
+    }
 
-        buttonViewProducts.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startActivity(new Intent(MainActivity.this, ViewProductsActivity.class));
-            }
-        });
+    private void loadFragment(Fragment fragment) {
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+        transaction.replace(R.id.fragment_container, fragment); // Ensure this ID exists in activity_main.xml
+        transaction.commit();
     }
 }
