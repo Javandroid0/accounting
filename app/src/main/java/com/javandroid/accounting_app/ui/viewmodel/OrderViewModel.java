@@ -57,7 +57,6 @@ public class OrderViewModel extends AndroidViewModel {
                 order.setProductSellPrice(product.getSellPrice());
                 order.setProductBuyPrice(product.getBuyPrice());
                 order.setQuantity(1);
-//                System.out.println(product.getBarcode());
                 appDatabase.orderDao().insert(order);
                 loadOrders();
             }
