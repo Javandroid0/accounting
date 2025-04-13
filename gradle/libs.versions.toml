@@ -1,19 +1,21 @@
 [versions]
 agp = "8.9.1"
 junit = "4.13.2"
-junitVersion = "1.1.5"
-espressoCore = "3.5.1"
+junitVersion = "1.2.1"
+espressoCore = "3.6.1"
 appcompat = "1.7.0"
 material = "1.12.0"
 activity = "1.10.1"
 constraintlayout = "2.2.1"
 roomCompiler = "2.6.0-alpha01"
-roomRuntime = "2.5.1"
+roomRuntime = "2.7.0"
 zxingAndroidEmbedded = "4.3.0"
 lifecycleLivedata = "2.8.7"
 lifecycleViewmodel = "2.8.7"
 recyclerview = "1.4.0"
 annotations = "23.0.0"
+navigationFragment = "2.8.9"
+navigationUi = "2.8.9"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -31,6 +33,8 @@ zxing-android-embedded = { group = "com.journeyapps", name = "zxing-android-embe
 lifecycle-livedata = { group = "androidx.lifecycle", name = "lifecycle-livedata", version = "2.8.7" }
 lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmodel", version.ref = "lifecycleViewmodel" }
 recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
+navigation-fragment = { group = "androidx.navigation", name = "navigation-fragment", version.ref = "navigationFragment" }
+navigation-ui = { group = "androidx.navigation", name = "navigation-ui", version.ref = "navigationUi" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -3,12 +3,10 @@ package com.javandroid.accounting_app.ui.fragment;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -19,20 +17,27 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.zxing.client.android.Intents;
 import com.javandroid.accounting_app.R;
-import com.javandroid.accounting_app.ui.adaptor.OrderAdapter;
+import com.javandroid.accounting_app.ui.adapter.OrderAdapter;
 import com.javandroid.accounting_app.ui.viewmodel.OrderViewModel;
 import com.journeyapps.barcodescanner.CaptureActivity;
 
-public class ScannerFragment extends Fragment {
+public class BarcodeScannerFragment extends Fragment {
+
     private static final int REQUEST_CODE_SCAN = 1;
     private OrderViewModel orderViewModel;
     private OrderAdapter orderAdapter;
 
+    public BarcodeScannerFragment() {
+        // Required empty public constructor
+    }
+
+    @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater,
-                             ViewGroup container, Bundle savedInstanceState) {
+                             @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_barcode_scanner, container, false);
 
-        View view = inflater.inflate(R.layout.fragment_scanner, container, false);
         Button scanButton = view.findViewById(R.id.scan_button);
         RecyclerView recyclerView = view.findViewById(R.id.orders_recyclerview);
 
@@ -40,7 +45,7 @@ public class ScannerFragment extends Fragment {
         orderAdapter = new OrderAdapter();
         recyclerView.setAdapter(orderAdapter);
 
-        orderViewModel = new ViewModelProvider(this).get(OrderViewModel.class);
+        orderViewModel = new ViewModelProvider(requireActivity()).get(OrderViewModel.class);
         orderViewModel.getOrders().observe(getViewLifecycleOwner(), orders -> {
             orderAdapter.submitList(orders);
         });
@@ -56,14 +61,15 @@ public class ScannerFragment extends Fragment {
     }
 
     @Override
-    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+    public void onActivityResult(int requestCode, int resultCode,
+                                 @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == REQUEST_CODE_SCAN && resultCode == Activity.RESULT_OK && data != null) {
             String barcode = data.getStringExtra(Intents.Scan.RESULT);
-            orderViewModel.scanBarcode(barcode);
+            if (barcode != null && !barcode.isEmpty()) {
+//                orderViewModel.scanBarcode(barcode); // Make sure this method is implemented
+            }
         }
     }
 }
-
-

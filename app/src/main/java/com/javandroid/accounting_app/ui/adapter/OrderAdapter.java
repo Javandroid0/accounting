@@ -1,4 +1,4 @@
-package com.javandroid.accounting_app.ui.adaptor;
+package com.javandroid.accounting_app.ui.adapter;
 
 import android.view.LayoutInflater;
 import android.view.View;

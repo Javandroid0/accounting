@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/barcodeScannerFragment">
+
+    <fragment
+        android:id="@+id/barcodeScannerFragment"
+        android:name="com.javandroid.accounting_app.ui.fragment.ScanFragment"
+        android:label="Scan Barcode"
+        tools:layout="@layout/fragment_scan">
+
+        <action
+            android:id="@+id/action_barcodeScannerFragment_to_confirmOrderFragment"
+            app:destination="@id/confirmOrderFragment" />
+
+        <action
+            android:id="@+id/action_barcodeScannerFragment_to_addProductFragment"
+            app:destination="@id/addProductFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/addProductFragment"
+        android:name="com.javandroid.accounting_app.ui.fragment.AddProductFragment"
+        android:label="Add Product"
+        tools:layout="@layout/fragment_add_product" />
+
+    <fragment
+        android:id="@+id/confirmOrderFragment"
+        android:name="com.javandroid.accounting_app.ui.fragment.OrderFragment"
+        android:label="Confirm Order"
+        tools:layout="@layout/fragment_order" />
+</navigation>

@@ -1,23 +1,47 @@
 package com.javandroid.accounting_app.ui.viewmodel;
 
 import android.app.Application;
+import android.util.Log;
 
-import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
-import androidx.room.Room;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
 
-import com.javandroid.accounting_app.data.database.AppDatabase;
 import com.javandroid.accounting_app.data.model.Product;
+import com.javandroid.accounting_app.data.repository.ProductRepository;
+
+import java.util.List;
 
 public class ProductViewModel extends AndroidViewModel {
-    private final AppDatabase db;
 
-    public ProductViewModel(@NonNull Application application) {
+    private final ProductRepository productRepository;
+    private final MutableLiveData<List<Product>> productListLiveData = new MutableLiveData<>();
+
+    public ProductViewModel(Application application) {
         super(application);
-        db = Room.databaseBuilder(application, AppDatabase.class, "shop-db").build();
+        productRepository = new ProductRepository(application);
     }
 
-    public void insertProduct(Product product) {
-        new Thread(() -> db.productDao().insert(product)).start();
+    // Method to fetch all products from the repository
+    public LiveData<List<Product>> getAllProducts() {
+//        productRepository.getAllProducts(productListLiveData);
+        productRepository.getAllProducts();
+        return productListLiveData;
     }
+
+    // Method to add a product to the order (this can be invoked from the UI layer)
+    public void addProductToOrder(Product product) {
+        // Here you can add logic to add the product to the current order
+        Log.d("ProductViewModel", "Product added to order: " + product.getName());
+    }
+
+    // Method to insert a new product into the database
+    public void insertProduct(Product product) {
+        productRepository.insert(product);
+    }
+
+    public LiveData<Product> getProductByBarcode(String barcode) {
+        return productRepository.getProductByBarcode(barcode);
+    }
+
 }
