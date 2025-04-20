@@ -17,7 +17,8 @@ public interface OrderDao {
     LiveData<List<Order>> getAllOrders(); // Read all
 
     @Query("SELECT * FROM orders WHERE userId = :userId")
-    LiveData<List<Order>> getOrdersByUserId(long userId); // Filtered Read
+    LiveData<List<Order>> getOrdersByUserId(String userId); // Filtered Read
+
 
     @Update
     void update(Order order); // Update

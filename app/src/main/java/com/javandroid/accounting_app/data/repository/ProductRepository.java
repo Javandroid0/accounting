@@ -45,6 +45,7 @@ public class ProductRepository {
         return db.productDao().getProductByBarcodeSync(barcode);
     }
     public LiveData<Product> getProductByBarcode(String barcode) {
+//        System.out.println(getProductByBarcodeSync(barcode));
         return db.productDao().getProductByBarcode(barcode); // assuming you have productDao
     }
 

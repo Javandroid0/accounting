@@ -3,32 +3,25 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/barcodeScannerFragment">
+    app:startDestination="@id/scanOrderFragment">
 
+    <!-- ScanOrderFragment -->
     <fragment
-        android:id="@+id/barcodeScannerFragment"
-        android:name="com.javandroid.accounting_app.ui.fragment.ScanFragment"
-        android:label="Scan Barcode"
-        tools:layout="@layout/fragment_scan">
+        android:id="@+id/scanOrderFragment"
+        android:name="com.javandroid.accounting_app.ui.fragment.ScanOrderFragment"
+        android:label="Scan Order"
+        tools:layout="@layout/fragment_scan_order">
 
+        <!-- Navigation action to AddProductFragment -->
         <action
-            android:id="@+id/action_barcodeScannerFragment_to_confirmOrderFragment"
-            app:destination="@id/confirmOrderFragment" />
-
-        <action
-            android:id="@+id/action_barcodeScannerFragment_to_addProductFragment"
+            android:id="@+id/action_scanOrderFragment_to_addProductFragment"
             app:destination="@id/addProductFragment" />
     </fragment>
 
+    <!-- AddProductFragment -->
     <fragment
         android:id="@+id/addProductFragment"
         android:name="com.javandroid.accounting_app.ui.fragment.AddProductFragment"
         android:label="Add Product"
         tools:layout="@layout/fragment_add_product" />
-
-    <fragment
-        android:id="@+id/confirmOrderFragment"
-        android:name="com.javandroid.accounting_app.ui.fragment.OrderFragment"
-        android:label="Confirm Order"
-        tools:layout="@layout/fragment_order" />
 </navigation>

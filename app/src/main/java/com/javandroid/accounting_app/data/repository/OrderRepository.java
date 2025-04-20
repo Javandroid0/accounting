@@ -28,7 +28,7 @@ public class OrderRepository {
         return db.orderDao().getAllOrders();
     }
 
-    public LiveData<List<Order>> getOrdersByUserId(long userId) {
+    public LiveData<List<Order>> getOrdersByUserId(String userId) {
         return db.orderDao().getOrdersByUserId(userId);
     }
 

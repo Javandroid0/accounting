@@ -8,6 +8,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -25,7 +28,10 @@ import com.javandroid.accounting_app.data.model.Product;
 import com.javandroid.accounting_app.ui.adapter.OrderAdapter;
 import com.javandroid.accounting_app.ui.viewmodel.OrderViewModel;
 import com.javandroid.accounting_app.ui.viewmodel.ProductViewModel;
+
 import com.journeyapps.barcodescanner.CaptureActivity;
+
+import java.util.List;
 
 public class ScanOrderFragment extends Fragment {
 
@@ -35,6 +41,12 @@ public class ScanOrderFragment extends Fragment {
     private ProductViewModel productViewModel;
 
     private OrderAdapter orderAdapter;
+    private TextView totalTextView;
+
+    private LinearLayout orderContainer;
+
+
+    private String currentUserId;
 
     public ScanOrderFragment() {}
 
@@ -45,34 +57,71 @@ public class ScanOrderFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_scan_order, container, false);
 
+//        orderViewModel.loadOrdersForCurrentUser();
+
+
         Button scanButton = view.findViewById(R.id.btn_scan_barcode);
         Button confirmButton = view.findViewById(R.id.btn_confirm_order);
-        RecyclerView orderRecyclerView = view.findViewById(R.id.recycler_order_list);
+//        RecyclerView orderRecyclerView = view.findViewById(R.id.recycler_order_list);
+        totalTextView = view.findViewById(R.id.tv_total_price); // ⚠️ You need to add this to your XML
+        orderContainer = view.findViewById(R.id.order_container);
 
-        orderRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+
+
+//        orderRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         orderAdapter = new OrderAdapter();
-        orderRecyclerView.setAdapter(orderAdapter);
+//        orderRecyclerView.setAdapter(orderAdapter);
 
-        // ViewModels
         orderViewModel = new ViewModelProvider(requireActivity()).get(OrderViewModel.class);
         productViewModel = new ViewModelProvider(requireActivity()).get(ProductViewModel.class);
 
-        // Observe current order list
-        orderViewModel.getOrders().observe(getViewLifecycleOwner(), orders -> {
-            orderAdapter.submitList(orders);
+        orderViewModel.setCurrentUserId();
+        currentUserId = orderViewModel.getCurrentUserId();
+//        // Observe order list for current user
+//        orderViewModel.getOrdersForUser(currentUserId).observe(getViewLifecycleOwner(), orders -> {
+//            orderAdapter.submitList(orders);
+//            updateTotal(orders);
+//        });
+
+        orderViewModel.getCurrentOrderList().observe(getViewLifecycleOwner(), orders -> {
+            orderContainer.removeAllViews(); // clear previous views
+            for (Order order : orders) {
+                addProductView(order);
+            }
+            updateTotal(orders);
         });
 
-        // Scan barcode
         scanButton.setOnClickListener(v -> {
             Intent intent = new Intent(getActivity(), CaptureActivity.class);
             startActivityForResult(intent, REQUEST_CODE_SCAN);
         });
 
-        // Confirm order
         confirmButton.setOnClickListener(v -> {
-            orderViewModel.confirmOrder();
+            orderViewModel.confirmOrderForUser(currentUserId);
             Toast.makeText(getContext(), "Order Confirmed!", Toast.LENGTH_SHORT).show();
+
+            currentUserId = orderViewModel.getCurrentUserId(); // 🔁 Update to new session ID
+
+            // Refresh the UI with new user's (empty) order list
+            orderViewModel.getCurrentOrderList().observe(getViewLifecycleOwner(), orders -> {
+                orderAdapter.submitList(orders);
+                updateTotal(orders);
+            });
         });
+        EditText etManualBarcode = view.findViewById(R.id.et_manual_barcode);
+
+        // Add listener for manual barcode input (e.g., press Enter or loss of focus)
+        etManualBarcode.setOnEditorActionListener((v, actionId, event) -> {
+            String barcode = etManualBarcode.getText().toString().trim();
+            if (!barcode.isEmpty()) {
+                checkAndAddProduct(barcode);
+                etManualBarcode.setText(""); // clear input
+                return true;
+            }
+            return false;
+        });
+
+
 
         return view;
     }
@@ -92,31 +141,75 @@ public class ScanOrderFragment extends Fragment {
     }
 
     private void checkAndAddProduct(String barcode) {
-        // Get product by barcode from repository (or DB query)
-        Product product = productViewModel.getProductByBarcode(barcode); // You must implement this
+        productViewModel.getProductByBarcode(barcode).observe(getViewLifecycleOwner(), product -> {
+            if (product != null) {
+                Order order = new Order();
+                order.setProductId(product.getBarcode());
+                order.setProductName(product.getName());
+                order.setProductSellPrice(product.getSellPrice());
+                order.setProductBuyPrice(product.getBuyPrice());
+                order.setQuantity(1);
+                order.setUserId(currentUserId); // ✅ Assign user ID
 
-        if (product != null) {
-            // Create Order from product
-            Order order = new Order();
-            order.setProductId(product.getBarcode());
-            order.setProductName(product.getName());
-            order.setProductSellPrice(product.getSellPrice());
-            order.setProductBuyPrice(product.getBuyPrice());
-            order.setQuantity(1);
-//            product.getId(), product.getName(), product.getSellPrice(), 1
-            orderViewModel.addProductToOrder(order);
-        } else {
-            // Show dialog or navigate to AddProductFragment
-            new AlertDialog.Builder(getContext())
-                    .setTitle("Product not found")
-                    .setMessage("Do you want to add this product?")
-                    .setPositiveButton("Add", (dialog, which) -> {
-                        // Navigate to add product screen
-                        Navigation.findNavController(requireView())
-                                .navigate(R.id.action_scanOrderFragment_to_addProductFragment);
-                    })
-                    .setNegativeButton("Cancel", null)
-                    .show();
-        }
+                orderViewModel.addProductToOrder(order);
+            } else {
+                new AlertDialog.Builder(getContext())
+                        .setTitle("Product not found")
+                        .setMessage("Do you want to add this product?")
+                        .setPositiveButton("Add", (dialog, which) -> {
+                            Bundle bundle = new Bundle();
+                            bundle.putString("scanned_barcode", barcode);
+                            Navigation.findNavController(requireView())
+                                    .navigate(R.id.action_scanOrderFragment_to_addProductFragment, bundle);
+//                            Navigation.findNavController(requireView())
+//                                    .navigate(R.id.action_scanOrderFragment_to_addProductFragment);
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            }
+        });
+    }
+
+    private void addProductView(Order order) {
+        LayoutInflater inflater = LayoutInflater.from(getContext());
+        View itemView = inflater.inflate(R.layout.partial_order_item, orderContainer, false);
+
+        TextView name = itemView.findViewById(R.id.tv_product_name);
+
+
+        TextView emptySpace = itemView.findViewById(R.id.emptySpace);
+
+        TextView price = itemView.findViewById(R.id.tv_product_price);
+        TextView quantity = itemView.findViewById(R.id.tv_quantity);
+        Button increase = itemView.findViewById(R.id.btn_increase);
+        Button decrease = itemView.findViewById(R.id.btn_decrease);
+
+        name.setText(order.getProductName());
+
+        price.setText(String.valueOf(order.getProductSellPrice()));
+        quantity.setText(String.valueOf(order.getQuantity()));
+
+        increase.setOnClickListener(v -> {
+            order.setQuantity(order.getQuantity() + 1);
+            orderViewModel.updateOrder(order);
+            quantity.setText(String.valueOf(order.getQuantity()));
+            updateTotal(orderViewModel.getCurrentOrderList().getValue());
+        });
+
+        decrease.setOnClickListener(v -> {
+            if (order.getQuantity() > 1) {
+                order.setQuantity(order.getQuantity() - 1);
+                orderViewModel.updateOrder(order);
+                quantity.setText(String.valueOf(order.getQuantity()));
+                updateTotal(orderViewModel.getCurrentOrderList().getValue());
+            }
+        });
+
+        orderContainer.addView(itemView);
+    }
+
+    private void updateTotal(List<Order> orders) {
+        double total = orderViewModel.calculateTotal(orders);
+        totalTextView.setText(String.format("Total: $%.2f", total));
     }
 }

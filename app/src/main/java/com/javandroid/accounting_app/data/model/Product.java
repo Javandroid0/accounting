@@ -1,5 +1,6 @@
 package com.javandroid.accounting_app.data.model;
 
+import androidx.annotation.Nullable;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
@@ -11,6 +12,16 @@ public class Product {
     private String name;
     private double sellPrice;
     private double buyPrice;
+
+    @Nullable
+    public String description;
+
+    public String getDescription() {
+        return description;
+    }
+    public void setDescription(String description){
+        this.description = description;
+    }
 
     // Getters & Setters
     public int getId() { return id; }

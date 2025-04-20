@@ -4,18 +4,94 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <Button
-        android:id="@+id/btn_scan_barcode"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Scan Product" />
+        android:orientation="horizontal">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recycler_order_list"
+        <EditText
+            android:id="@+id/et_manual_barcode"
+            android:layout_width="0dp"
+            android:layout_weight="2"
+            android:layout_height="wrap_content"
+            android:hint="Enter barcode"
+            android:inputType="text" />
+
+        <Button
+            android:id="@+id/btn_scan_barcode"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Scan" />
+    </LinearLayout>
+
+
+<!--    <androidx.recyclerview.widget.RecyclerView-->
+<!--        android:id="@+id/recycler_order_list"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="0dp"-->
+<!--        android:layout_weight="1"-->
+<!--        android:layout_marginTop="16dp" />-->
+
+<!--    <LinearLayout-->
+<!--        xmlns:android="http://schemas.android.com/apk/res/android"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:orientation="horizontal"-->
+<!--        android:padding="8dp"-->
+<!--        android:gravity="center_vertical">-->
+
+<!--        <TextView-->
+<!--            android:id="@+id/tv_product_name"-->
+<!--            android:layout_width="0dp"-->
+<!--            android:layout_weight="2"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:text="Product Name" />-->
+
+<!--        <Button-->
+<!--            android:id="@+id/btn_decrease"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:text="−" />-->
+
+<!--        <TextView-->
+<!--            android:id="@+id/tv_quantity"-->
+<!--            android:layout_width="32dp"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:text="1"-->
+<!--            android:gravity="center"-->
+<!--            android:textSize="16sp" />-->
+
+<!--        <Button-->
+<!--            android:id="@+id/btn_increase"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:text="+" />-->
+<!--    </LinearLayout>-->
+
+
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="16dp" />
+        android:layout_marginTop="16dp">
+
+        <LinearLayout
+            android:id="@+id/order_container"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+    </ScrollView>
+
+    <TextView
+        android:id="@+id/tv_total_price"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Total: $0.00"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginTop="8dp"
+        android:gravity="end"/>
 
     <Button
         android:id="@+id/btn_confirm_order"
@@ -23,5 +99,4 @@
         android:layout_height="wrap_content"
         android:text="Confirm Order"
         android:layout_marginTop="8dp"/>
-
 </LinearLayout>

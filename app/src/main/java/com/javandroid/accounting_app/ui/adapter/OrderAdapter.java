@@ -20,6 +20,7 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
     public void submitList(List<Order> orders) {
         orderList.clear();
         orderList.addAll(orders);
+        System.out.println(orderList);
         notifyDataSetChanged();
     }
 
