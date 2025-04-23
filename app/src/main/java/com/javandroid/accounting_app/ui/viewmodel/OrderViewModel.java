@@ -12,6 +12,7 @@ import com.javandroid.accounting_app.data.model.Order;
 import com.javandroid.accounting_app.data.repository.OrderRepository;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
@@ -43,7 +44,7 @@ public class OrderViewModel extends AndroidViewModel {
     }
 
     public void addProductToOrder(Order order) {
-        orderRepository.insert(order);
+//        orderRepository.insert(order);
         Log.d("OrderViewModel", "Product added: " + order.getProductName());
 
         List<Order> updatedOrders = new ArrayList<>(currentOrders.getValue());
@@ -73,6 +74,19 @@ public class OrderViewModel extends AndroidViewModel {
         }
         currentOrders.setValue(updatedOrders);
     }
+    public void updateOrderInMemory(Order updatedOrder) {
+        List<Order> updatedOrders = new ArrayList<>(currentOrders.getValue());
+
+        for (int i = 0; i < updatedOrders.size(); i++) {
+            System.out.println(updatedOrders.size());
+            if (updatedOrders.get(i).getProductId() == updatedOrder.getProductId()) {
+                updatedOrders.set(i, updatedOrder);
+                break;
+            }
+        }
+        currentOrders.setValue(updatedOrders);
+    }
+
 
     public double calculateTotal(List<Order> orders) {
         double total = 0.0;
@@ -96,11 +110,20 @@ public class OrderViewModel extends AndroidViewModel {
         // You can log or show that orders for this user are considered confirmed
         Log.d("OrderViewModel", "Confirmed orders for user: " + userId);
 
+        List<Order> confirmedOrders = currentOrders.getValue();
+        if (confirmedOrders != null) {
+            for (Order order : confirmedOrders) {
+                orderRepository.insert(order); // now save to DB
+            }
+        }
         // Generate a new unique user ID (just +1 for simplicity)
 //        currentUserId = userId + 1;
         setCurrentUserId();
 
         Log.d("OrderViewModel", "Next order session for user: " + currentUserId);
+
+        currentOrders.setValue(new ArrayList<>());
+
     }
 
     public String getCurrentUserId() {

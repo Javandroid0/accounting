@@ -1,0 +1,45 @@
+package com.javandroid.accounting_app.domain.manager;
+
+import com.javandroid.accounting_app.data.model.Order;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class OrderManager {
+    private final List<Order> orders = new ArrayList<>();
+
+    public void addProduct(Order newOrder) {
+        for (Order order : orders) {
+            if (order.getProductId() == newOrder.getProductId()) {
+                order.setQuantity(order.getQuantity() + 1);
+                return;
+            }
+        }
+        orders.add(newOrder);
+    }
+
+    public void updateQuantity(int productId, int newQuantity) {
+        for (Order order : orders) {
+            if (order.getProductId() == productId) {
+                order.setQuantity(newQuantity);
+                return;
+            }
+        }
+    }
+
+    public void clear() {
+        orders.clear();
+    }
+
+    public List<Order> getOrders() {
+        return new ArrayList<>(orders);
+    }
+
+    public double calculateTotal() {
+        double total = 0;
+        for (Order order : orders) {
+            total += order.getQuantity() * order.getProductSellPrice();
+        }
+        return total;
+    }
+}

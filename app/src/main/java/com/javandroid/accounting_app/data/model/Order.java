@@ -9,7 +9,9 @@ public class Order {
     private int orderId;
     private String userId;
 
-    private String productId; // barcode
+    private int productId;
+
+    private String productBarcode;
     private String productName;
     private double productSellPrice;
     private double productBuyPrice;
@@ -24,8 +26,8 @@ public class Order {
     public String getUserId() { return userId; }
     public void setUserId(String userId) { this.userId = userId; }
 
-    public String getProductId() { return productId; }
-    public void setProductId(String productId) { this.productId = productId; }
+    public int getProductId() { return productId; }
+    public void setProductId(int productId) { this.productId = productId; }
 
     public String getProductName() { return productName; }
     public void setProductName(String productName) { this.productName = productName; }
@@ -38,4 +40,12 @@ public class Order {
 
     public int getQuantity() { return quantity; }
     public void setQuantity(int quantity) { this.quantity = quantity; }
+
+    public String getProductBarcode() {
+        return productBarcode;
+    }
+
+    public void setProductBarcode(String productBarcode) {
+        this.productBarcode = productBarcode;
+    }
 }

@@ -57,31 +57,22 @@ public class ScanOrderFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_scan_order, container, false);
 
-//        orderViewModel.loadOrdersForCurrentUser();
-
 
         Button scanButton = view.findViewById(R.id.btn_scan_barcode);
         Button confirmButton = view.findViewById(R.id.btn_confirm_order);
-//        RecyclerView orderRecyclerView = view.findViewById(R.id.recycler_order_list);
-        totalTextView = view.findViewById(R.id.tv_total_price); // ⚠️ You need to add this to your XML
+       totalTextView = view.findViewById(R.id.tv_total_price); // ⚠️ You need to add this to your XML
         orderContainer = view.findViewById(R.id.order_container);
 
 
 
-//        orderRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         orderAdapter = new OrderAdapter();
-//        orderRecyclerView.setAdapter(orderAdapter);
 
         orderViewModel = new ViewModelProvider(requireActivity()).get(OrderViewModel.class);
         productViewModel = new ViewModelProvider(requireActivity()).get(ProductViewModel.class);
 
         orderViewModel.setCurrentUserId();
         currentUserId = orderViewModel.getCurrentUserId();
-//        // Observe order list for current user
-//        orderViewModel.getOrdersForUser(currentUserId).observe(getViewLifecycleOwner(), orders -> {
-//            orderAdapter.submitList(orders);
-//            updateTotal(orders);
-//        });
+
 
         orderViewModel.getCurrentOrderList().observe(getViewLifecycleOwner(), orders -> {
             orderContainer.removeAllViews(); // clear previous views
@@ -102,11 +93,15 @@ public class ScanOrderFragment extends Fragment {
 
             currentUserId = orderViewModel.getCurrentUserId(); // 🔁 Update to new session ID
 
+
+            currentUserId = orderViewModel.getCurrentUserId(); // new session ID
+            orderContainer.removeAllViews(); // reset UI
+
             // Refresh the UI with new user's (empty) order list
-            orderViewModel.getCurrentOrderList().observe(getViewLifecycleOwner(), orders -> {
-                orderAdapter.submitList(orders);
-                updateTotal(orders);
-            });
+//            orderViewModel.getCurrentOrderList().observe(getViewLifecycleOwner(), orders -> {
+//                orderAdapter.submitList(orders);
+//                updateTotal(orders);
+//            });
         });
         EditText etManualBarcode = view.findViewById(R.id.et_manual_barcode);
 
@@ -144,7 +139,8 @@ public class ScanOrderFragment extends Fragment {
         productViewModel.getProductByBarcode(barcode).observe(getViewLifecycleOwner(), product -> {
             if (product != null) {
                 Order order = new Order();
-                order.setProductId(product.getBarcode());
+                order.setProductId(product.getId());
+                order.setProductBarcode(product.getBarcode());
                 order.setProductName(product.getName());
                 order.setProductSellPrice(product.getSellPrice());
                 order.setProductBuyPrice(product.getBuyPrice());
@@ -191,7 +187,8 @@ public class ScanOrderFragment extends Fragment {
 
         increase.setOnClickListener(v -> {
             order.setQuantity(order.getQuantity() + 1);
-            orderViewModel.updateOrder(order);
+//            orderViewModel.updateOrder(order);
+            orderViewModel.updateOrderInMemory(order);
             quantity.setText(String.valueOf(order.getQuantity()));
             updateTotal(orderViewModel.getCurrentOrderList().getValue());
         });
@@ -199,7 +196,9 @@ public class ScanOrderFragment extends Fragment {
         decrease.setOnClickListener(v -> {
             if (order.getQuantity() > 1) {
                 order.setQuantity(order.getQuantity() - 1);
-                orderViewModel.updateOrder(order);
+//                orderViewModel.updateOrder(order);
+                orderViewModel.updateOrderInMemory(order);
+
                 quantity.setText(String.valueOf(order.getQuantity()));
                 updateTotal(orderViewModel.getCurrentOrderList().getValue());
             }
