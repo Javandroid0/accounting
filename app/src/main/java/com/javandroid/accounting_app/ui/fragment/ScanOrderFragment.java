@@ -40,6 +40,7 @@ public class ScanOrderFragment extends Fragment {
         binding = FragmentScanOrderBinding.inflate(inflater, container, false);
         return binding.getRoot();
     }
+
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         viewModel = new ViewModelProvider(requireActivity()).get(OrderViewModel.class);
