@@ -15,8 +15,19 @@ public class Order {
     private String productName;
     private double productSellPrice;
     private double productBuyPrice;
-    private int quantity;
+    private double quantity;
 
+    public Order(){}
+
+    public Order(String currentUserId, int id, String name,String productBarcode, int i, double sellPrice,double productBuyPrice) {
+        this.userId = currentUserId;
+        this.productId = id;
+        this.productName = name;
+        this.productBarcode = productBarcode;
+        this.quantity = i;
+        this.productSellPrice = sellPrice;
+        this.productBuyPrice = productBuyPrice;
+    }
 
 
     // Getters & Setters
@@ -38,8 +49,8 @@ public class Order {
     public double getProductBuyPrice() { return productBuyPrice; }
     public void setProductBuyPrice(double productBuyPrice) { this.productBuyPrice = productBuyPrice; }
 
-    public int getQuantity() { return quantity; }
-    public void setQuantity(int quantity) { this.quantity = quantity; }
+    public double getQuantity() { return quantity; }
+    public void setQuantity(double quantity) { this.quantity = quantity; }
 
     public String getProductBarcode() {
         return productBarcode;

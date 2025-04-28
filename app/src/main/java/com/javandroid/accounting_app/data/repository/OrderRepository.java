@@ -6,6 +6,7 @@ import androidx.lifecycle.LiveData;
 
 import com.javandroid.accounting_app.data.database.AppDatabase;
 import com.javandroid.accounting_app.data.model.Order;
+import com.javandroid.accounting_app.data.model.Product;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -30,6 +31,10 @@ public class OrderRepository {
 
     public LiveData<List<Order>> getOrdersByUserId(String userId) {
         return db.orderDao().getOrdersByUserId(userId);
+    }
+    // Method to fetch product by barcode
+    public Product getProductByBarcode(String barcode) {
+        return db.productDao().getProductByBarcodeSync(barcode);
     }
 
     public void update(Order order) {

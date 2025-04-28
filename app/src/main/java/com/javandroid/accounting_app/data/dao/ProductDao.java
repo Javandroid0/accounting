@@ -3,6 +3,7 @@ package com.javandroid.accounting_app.data.dao;
 import androidx.lifecycle.LiveData;
 import androidx.room.*;
 
+import com.javandroid.accounting_app.data.model.Order;
 import com.javandroid.accounting_app.data.model.Product;
 
 import java.util.List;

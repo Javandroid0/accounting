@@ -18,7 +18,7 @@ public class OrderManager {
         orders.add(newOrder);
     }
 
-    public void updateQuantity(int productId, int newQuantity) {
+    public void updateQuantity(int productId, double newQuantity) {
         for (Order order : orders) {
             if (order.getProductId() == productId) {
                 order.setQuantity(newQuantity);
