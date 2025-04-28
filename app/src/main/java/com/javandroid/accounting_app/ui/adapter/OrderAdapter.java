@@ -51,7 +51,6 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
         Button btnIncrease, btnDecrease;
         EditText quantityView;
 
-
         public OrderViewHolder(View itemView) {
             super(itemView);
             nameView = itemView.findViewById(R.id.tv_product_name);
