@@ -50,6 +50,7 @@ public class ScanOrderFragment extends Fragment {
         observeViewModel();
     }
 
+
     private void setupRecyclerView() {
         adapter = new OrderAdapter(
                 order -> viewModel.updateQuantity(order.getProductId(), order.getQuantity() + 1),
