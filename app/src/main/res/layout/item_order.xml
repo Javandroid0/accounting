@@ -33,13 +33,15 @@
         android:layout_height="wrap_content"
         android:text="−" />
 
-    <TextView
-        android:id="@+id/tv_quantity"
-        android:layout_width="32dp"
+    <EditText
+        android:id="@+id/quantityView"
+        android:layout_width="48dp"
         android:layout_height="wrap_content"
+        android:inputType="numberDecimal"
         android:text="1"
         android:gravity="center"
         android:textSize="16sp" />
+
 
     <Button
         android:id="@+id/btn_increase"
