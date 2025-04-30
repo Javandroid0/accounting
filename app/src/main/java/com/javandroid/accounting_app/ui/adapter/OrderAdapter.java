@@ -24,6 +24,7 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
     public interface OnOrderAction {
         void onClick(Order order);
     }
+
     public interface OnQuantityChanged {
         void onQuantityChanged(Order order, double newQuantity);
     }
