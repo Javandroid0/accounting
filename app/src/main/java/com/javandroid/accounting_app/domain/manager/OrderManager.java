@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class OrderManager {
-    private final List<Order> orders = new ArrayList<>();
+    private List<Order> orders = new ArrayList<>();
 
     public void addProduct(Order newOrder) {
         for (Order order : orders) {
@@ -42,4 +42,9 @@ public class OrderManager {
         }
         return total;
     }
+
+    public void setOrders(List<Order> orders) {
+        this.orders = new ArrayList<>(orders);
+    }
+
 }

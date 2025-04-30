@@ -140,7 +140,9 @@ public class ScanOrderFragment extends Fragment {
 
     private void observeViewModel() {
         viewModel.getCurrentOrders().observe(getViewLifecycleOwner(), orders -> {
+
             adapter.submitList(orders);
+
             binding.textTotal.setText("Total: $" + viewModel.calculateTotal());
         });
     }

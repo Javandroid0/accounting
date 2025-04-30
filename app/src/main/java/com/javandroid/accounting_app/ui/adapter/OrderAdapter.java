@@ -33,6 +33,9 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
     private final OnOrderAction onDecrease;
     private final OnQuantityChanged onQuantityChanged;  // 🔥 New field
 
+    private boolean isBinding = false;
+
+
     public OrderAdapter(OnOrderAction onIncrease, OnOrderAction onDecrease, OnQuantityChanged onQuantityChanged) {
         this.onIncrease = onIncrease;
         this.onDecrease = onDecrease;
@@ -74,41 +77,60 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
         Order order = orderList.get(position);
 
         holder.nameView.setText(order.getProductName());
-//        holder.quantityView.setText(" " + (int) order.getQuantity());
+        holder.priceView.setText(String.valueOf(order.getProductSellPrice()));
 
-        holder.quantityView.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+        // Remove previous TextWatcher
+        if (holder.quantityView.getTag() instanceof TextWatcher) {
+            holder.quantityView.removeTextChangedListener((TextWatcher) holder.quantityView.getTag());
+        }
 
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) { }
+        // ⚠️ Set binding flag true
+        isBinding = true;
+        holder.quantityView.setText(String.valueOf(order.getQuantity()));
+        isBinding = false;
+
+        // New watcher
+        TextWatcher watcher = new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
 
             @Override
             public void afterTextChanged(Editable s) {
+                if (isBinding) return; // ✅ Ignore changes during binding
+
                 String input = s.toString();
                 if (!input.isEmpty()) {
                     try {
                         double quantity = Double.parseDouble(input);
-                        onQuantityChanged.onQuantityChanged(order, quantity);  // 🔥 Correct
+                        order.setQuantity(quantity);
+                        onQuantityChanged.onQuantityChanged(order, quantity);
                     } catch (NumberFormatException e) {
                         holder.quantityView.setError("Invalid number");
                     }
                 }
             }
+        };
+
+        holder.quantityView.setTag(watcher);
+        holder.quantityView.addTextChangedListener(watcher);
+
+        // Increase
+        holder.btnIncrease.setOnClickListener(v -> {
+            double newQuantity = order.getQuantity() + 1;
+            order.setQuantity(newQuantity);
+            notifyItemChanged(holder.getAdapterPosition());
+            onQuantityChanged.onQuantityChanged(order, newQuantity);
         });
 
-
-        holder.priceView.setText(" " + order.getProductSellPrice());
-
-//        holder.itemView.setOnClickListener(v -> onIncrease.onClick(order));
-//        holder.itemView.setOnLongClickListener(v -> {
-//            onDecrease.onClick(order);
-//            return true;
-//        });
-        holder.btnIncrease.setOnClickListener(v -> onIncrease.onClick(order));
-        holder.btnDecrease.setOnClickListener(v -> onDecrease.onClick(order));
-
+        // Decrease
+        holder.btnDecrease.setOnClickListener(v -> {
+            double newQuantity = Math.max(1, order.getQuantity() - 1);
+            order.setQuantity(newQuantity);
+            notifyItemChanged(holder.getAdapterPosition());
+            onQuantityChanged.onQuantityChanged(order, newQuantity);
+        });
     }
+
 
     @Override
     public int getItemCount() {

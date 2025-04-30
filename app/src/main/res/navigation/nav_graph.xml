@@ -24,4 +24,11 @@
         android:name="com.javandroid.accounting_app.ui.fragment.AddProductFragment"
         android:label="Add Product"
         tools:layout="@layout/fragment_add_product" />
+
+    <!-- New Fragment for handling Menu actions -->
+    <fragment
+        android:id="@+id/menuFragment"
+        android:name="com.javandroid.accounting_app.ui.fragment.OrderEditorFragment"
+        android:label="Menu"
+        tools:layout="@layout/fragment_order_editor" />
 </navigation>

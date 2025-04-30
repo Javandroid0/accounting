@@ -12,6 +12,7 @@ import com.javandroid.accounting_app.data.repository.OrderRepository;
 import com.javandroid.accounting_app.domain.manager.OrderManager;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 public class OrderViewModel extends AndroidViewModel {
@@ -65,5 +66,19 @@ public class OrderViewModel extends AndroidViewModel {
 
     public void setCurrentUserId() {
         currentUserId = LocalDateTime.now().toString();
+    }
+
+    // Delete a single order from the list
+    public void deleteOrder(Order order) {
+        List<Order> orders = new ArrayList<>(orderManager.getOrders());
+        orders.remove(order);
+        orderManager.setOrders(orders);  // You need to implement setOrders in OrderManager if not existing yet
+        currentOrders.setValue(orderManager.getOrders());
+    }
+
+    // Update the whole list of orders
+    public void updateOrders(List<Order> updatedOrders) {
+        orderManager.setOrders(updatedOrders);
+        currentOrders.setValue(orderManager.getOrders());
     }
 }
