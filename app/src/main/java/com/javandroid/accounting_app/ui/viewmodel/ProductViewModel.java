@@ -29,6 +29,10 @@ public class ProductViewModel extends AndroidViewModel {
         return productListLiveData;
     }
 
+    public LiveData<List<Product>> getAllProducts1() {
+        return productRepository.getAllProducts();
+    }
+
     // Method to add a product to the order (this can be invoked from the UI layer)
     public void addProductToOrder(Product product) {
         // Here you can add logic to add the product to the current order
@@ -42,6 +46,14 @@ public class ProductViewModel extends AndroidViewModel {
 
     public LiveData<Product> getProductByBarcode(String barcode) {
         return productRepository.getProductByBarcode(barcode);
+    }
+
+    public void deleteProduct(Product product) {
+        productRepository.delete(product);
+    }
+
+    public void updateProducts(List<Product> products) {
+        productRepository.update(products);
     }
 
 }

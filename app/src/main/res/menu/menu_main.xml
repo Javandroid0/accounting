@@ -1,10 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <!-- Menu item to show the menu fragment -->
+
     <item
-        android:id="@+id/action_open_menu"
-        android:title="Open Menu"
-        android:icon="@android:drawable/ic_menu_manage"
-        app:showAsAction="ifRoom" />
+        android:id="@+id/action_open_order_editor"
+        android:title="Edit Orders"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_open_product_editor"
+        android:title="Edit Products"
+        app:showAsAction="never" />
 </menu>

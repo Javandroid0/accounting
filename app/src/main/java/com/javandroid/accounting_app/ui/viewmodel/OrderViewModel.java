@@ -51,6 +51,11 @@ public class OrderViewModel extends AndroidViewModel {
     public LiveData<List<Order>> getCurrentOrders() {
         return currentOrders;
     }
+
+    public LiveData<List<Order>> getAllOrders() {
+        return orderRepository.getAllOrders();  // Make sure this fetches from Room DB
+    }
+
     public Product getProductByBarcode(String barcode) {
         // You can search for the product in your repository or database
         return orderRepository.getProductByBarcode(barcode);
@@ -68,13 +73,16 @@ public class OrderViewModel extends AndroidViewModel {
         currentUserId = LocalDateTime.now().toString();
     }
 
-    // Delete a single order from the list
+    //     Delete a single order from the list
     public void deleteOrder(Order order) {
-        List<Order> orders = new ArrayList<>(orderManager.getOrders());
-        orders.remove(order);
-        orderManager.setOrders(orders);  // You need to implement setOrders in OrderManager if not existing yet
-        currentOrders.setValue(orderManager.getOrders());
+//        List<Order> orders = new ArrayList<>(orderManager.getOrders());
+//        orders.remove(order);
+//        orderManager.setOrders(orders);  // You need to implement setOrders in OrderManager if not existing yet
+//        currentOrders.setValue(orderManager.getOrders());
+        orderRepository.deleteOrder(order);
+//        repository.deleteOrder(order);
     }
+
 
     // Update the whole list of orders
     public void updateOrders(List<Order> updatedOrders) {

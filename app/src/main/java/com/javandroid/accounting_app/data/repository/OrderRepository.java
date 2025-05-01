@@ -32,6 +32,7 @@ public class OrderRepository {
     public LiveData<List<Order>> getOrdersByUserId(String userId) {
         return db.orderDao().getOrdersByUserId(userId);
     }
+
     // Method to fetch product by barcode
     public Product getProductByBarcode(String barcode) {
         return db.productDao().getProductByBarcodeSync(barcode);
@@ -47,5 +48,9 @@ public class OrderRepository {
 
     public void deleteAll() {
         executor.execute(() -> db.orderDao().deleteAll());
+    }
+
+    public void deleteOrder(Order order) {
+        Executors.newSingleThreadExecutor().execute(() -> db.orderDao().deleteOrder(order));
     }
 }

@@ -8,36 +8,35 @@
 
     <TextView
         android:id="@+id/tv_product_name"
-        android:layout_width="60dp"
+        android:layout_width="80dp"
         android:layout_height="wrap_content"
         android:text="Product" />
 
-    <EditText
-        android:id="@+id/et_quantity"
-        android:layout_width="70dp"
-        android:layout_height="wrap_content"
-        android:autofillHints=""
-        android:hint="Qty"
-        android:inputType="numberDecimal" />
+    <!--    <EditText-->
+    <!--        android:id="@+id/et_quantity"-->
+    <!--        android:layout_width="70dp"-->
+    <!--        android:layout_height="wrap_content"-->
+    <!--        android:autofillHints=""-->
+    <!--        android:hint="Qty"-->
+    <!--        android:inputType="numberDecimal" />-->
 
     <EditText
         android:id="@+id/et_price"
         android:layout_width="70dp"
         android:layout_height="wrap_content"
-        android:autofillHints=""
         android:hint="Sell Price"
         android:inputType="numberDecimal" />
 
-    <!--    <EditText-->
-    <!--        android:id="@+id/et_buy_price"-->
-    <!--        android:layout_width="70dp"-->
-    <!--        android:layout_height="wrap_content"-->
-    <!--        android:autofillHints=""-->
-    <!--        android:hint="Buy"-->
-    <!--        android:inputType="numberDecimal" />-->
+    <EditText
+        android:id="@+id/et_buy_price"
+        android:layout_width="70dp"
+        android:layout_height="wrap_content"
+        android:hint="Buy"
+        android:inputType="numberDecimal" />
+
 
     <Button
-        android:id="@+id/btn_delete_order"
+        android:id="@+id/btn_delete_product"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Delete" />

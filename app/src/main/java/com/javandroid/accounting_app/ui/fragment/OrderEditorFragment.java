@@ -63,7 +63,7 @@ public class OrderEditorFragment extends Fragment {
         recyclerView.setAdapter(adapter);
 
         // Load orders
-        orderViewModel.getCurrentOrders().observe(getViewLifecycleOwner(), orders -> {
+        orderViewModel.getAllOrders().observe(getViewLifecycleOwner(), orders -> {
             adapter.submitList(orders);
         });
 
@@ -71,5 +71,6 @@ public class OrderEditorFragment extends Fragment {
             List<Order> updatedOrders = adapter.getCurrentOrders();
             orderViewModel.updateOrders(updatedOrders);
         });
+
     }
 }

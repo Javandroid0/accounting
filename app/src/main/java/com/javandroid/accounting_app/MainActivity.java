@@ -38,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
     public boolean onSupportNavigateUp() {
         return navController != null && navController.navigateUp() || super.onSupportNavigateUp();
     }
+
     // Inflate the menu
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -45,15 +46,20 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
-    // Handle the item click
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.action_open_menu) {
-            // Navigate to MenuFragment when the button is clicked
-            Navigation.findNavController(this, R.id.nav_host_fragment)
-                    .navigate(R.id.menuFragment);
+        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
+
+        if (item.getItemId() == R.id.action_open_order_editor) {
+            navController.navigate(R.id.menuFragment);
             return true;
+        } else if (item.getItemId() == R.id.action_open_product_editor) {
+            navController.navigate(R.id.menuFragment1);
+            return true;
+        } else {
+            return super.onOptionsItemSelected(item);
         }
-        return super.onOptionsItemSelected(item);
     }
+
+
 }

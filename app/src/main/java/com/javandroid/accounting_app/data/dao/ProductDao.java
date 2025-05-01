@@ -26,6 +26,9 @@ public interface ProductDao {
     @Update
     void update(Product product); // Update
 
+    @Update
+    void updateAll(List<Product> products);
+
     @Delete
     void delete(Product product); // Delete
 

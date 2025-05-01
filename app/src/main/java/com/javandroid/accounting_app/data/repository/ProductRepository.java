@@ -32,6 +32,10 @@ public class ProductRepository {
         executor.execute(() -> db.productDao().update(product));
     }
 
+    public void update(List<Product> products) {
+        executor.execute(() -> db.productDao().updateAll(products));
+    }
+
     public void delete(Product product) {
         executor.execute(() -> db.productDao().delete(product));
     }
@@ -44,6 +48,7 @@ public class ProductRepository {
         // Only use this in background threads
         return db.productDao().getProductByBarcodeSync(barcode);
     }
+
     public LiveData<Product> getProductByBarcode(String barcode) {
 //        System.out.println(getProductByBarcodeSync(barcode));
         return db.productDao().getProductByBarcode(barcode); // assuming you have productDao
