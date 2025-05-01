@@ -18,6 +18,7 @@ public class Order {
     private double quantity;
 
     public Order() {
+
     }
 
     public Order(String currentUserId, int id, String name, String productBarcode, int i, double sellPrice, double productBuyPrice) {
