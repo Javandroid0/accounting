@@ -24,10 +24,9 @@ public class ProductViewModel extends AndroidViewModel {
 
     // Method to fetch all products from the repository
     public LiveData<List<Product>> getAllProducts() {
-//        productRepository.getAllProducts(productListLiveData);
-        productRepository.getAllProducts();
-        return productListLiveData;
+        return productRepository.getAllProducts();
     }
+
 
     public LiveData<List<Product>> getAllProducts1() {
         return productRepository.getAllProducts();

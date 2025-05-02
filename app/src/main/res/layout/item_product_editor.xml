@@ -10,6 +10,7 @@
         android:id="@+id/tv_product_name"
         android:layout_width="80dp"
         android:layout_height="wrap_content"
+        android:layout_weight="4"
         android:text="Product" />
 
     <!--    <EditText-->
@@ -24,6 +25,7 @@
         android:id="@+id/et_price"
         android:layout_width="70dp"
         android:layout_height="wrap_content"
+        android:layout_weight="4"
         android:hint="Sell Price"
         android:inputType="numberDecimal" />
 
@@ -31,6 +33,7 @@
         android:id="@+id/et_buy_price"
         android:layout_width="70dp"
         android:layout_height="wrap_content"
+        android:layout_weight="4"
         android:hint="Buy"
         android:inputType="numberDecimal" />
 
@@ -39,5 +42,6 @@
         android:id="@+id/btn_delete_product"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_weight="4"
         android:text="Delete" />
 </LinearLayout>
