@@ -56,7 +56,7 @@ public class OrderEditorFragment extends Fragment {
 
             @Override
             public void onDelete(Order order) {
-                orderViewModel.deleteOrder(order);
+                orderViewModel.deleteOrder2(order);
             }
         });
 

@@ -22,7 +22,9 @@ public class OrderEditorAdapter extends RecyclerView.Adapter<OrderEditorAdapter.
 
     public interface OnOrderChangeListener {
         void onQuantityChanged(Order order, double newQuantity);
+
         void onPriceChanged(Order order, double newPrice);
+
         void onDelete(Order order);
     }
 
@@ -61,9 +63,16 @@ public class OrderEditorAdapter extends RecyclerView.Adapter<OrderEditorAdapter.
         holder.priceInput.setText(String.valueOf(order.getProductSellPrice()));
 
         holder.quantityInput.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
-            @Override public void afterTextChanged(Editable s) {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
                 try {
                     double newQuantity = Double.parseDouble(s.toString());
                     listener.onQuantityChanged(order, newQuantity);
@@ -71,10 +80,18 @@ public class OrderEditorAdapter extends RecyclerView.Adapter<OrderEditorAdapter.
             }
         });
 
+
         holder.priceInput.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
-            @Override public void afterTextChanged(Editable s) {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
                 try {
                     double newPrice = Double.parseDouble(s.toString());
                     listener.onPriceChanged(order, newPrice);

@@ -74,13 +74,18 @@ public class OrderViewModel extends AndroidViewModel {
     }
 
     //     Delete a single order from the list
-    public void deleteOrder(Order order) {
+    public void deleteOrder2(Order order) {
 //        List<Order> orders = new ArrayList<>(orderManager.getOrders());
 //        orders.remove(order);
 //        orderManager.setOrders(orders);  // You need to implement setOrders in OrderManager if not existing yet
 //        currentOrders.setValue(orderManager.getOrders());
         orderRepository.deleteOrder(order);
 //        repository.deleteOrder(order);
+    }
+
+    public void deleteOrder1(int productId) {
+        orderManager.deleteOrder(productId);
+        currentOrders.setValue(orderManager.getOrders()); // or however you update the UI
     }
 
 

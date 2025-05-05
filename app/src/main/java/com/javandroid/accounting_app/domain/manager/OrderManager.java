@@ -47,4 +47,14 @@ public class OrderManager {
         this.orders = new ArrayList<>(orders);
     }
 
+    public void deleteOrder(int productId) {
+        for (int i = 0; i < orders.size(); i++) {
+            if (orders.get(i).getProductId() == productId) {
+                orders.remove(i);
+                return;
+            }
+        }
+    }
+
+
 }

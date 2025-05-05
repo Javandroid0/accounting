@@ -21,6 +21,9 @@ import java.util.List;
 
 public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHolder> {
 
+
+    private final OnOrderDeleted onOrderDeleted;
+
     public interface OnOrderAction {
         void onClick(Order order);
     }
@@ -28,6 +31,12 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
     public interface OnQuantityChanged {
         void onQuantityChanged(Order order, double newQuantity);
     }
+
+
+    public interface OnOrderDeleted {
+        void onDelete1(Order order);
+    }
+
 
     private List<Order> orderList = new ArrayList<>();
     private final OnOrderAction onIncrease;
@@ -37,10 +46,12 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
     private boolean isBinding = false;
 
 
-    public OrderAdapter(OnOrderAction onIncrease, OnOrderAction onDecrease, OnQuantityChanged onQuantityChanged) {
+    public OrderAdapter(OnOrderAction onIncrease, OnOrderAction onDecrease, OnQuantityChanged onQuantityChanged, OnOrderDeleted onOrderDeleted) {
         this.onIncrease = onIncrease;
         this.onDecrease = onDecrease;
         this.onQuantityChanged = onQuantityChanged;
+
+        this.onOrderDeleted = onOrderDeleted;
     }
 
 
@@ -52,7 +63,7 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
 
     public static class OrderViewHolder extends RecyclerView.ViewHolder {
         TextView nameView, priceView;
-        Button btnIncrease, btnDecrease;
+        Button btnIncrease, btnDecrease, delete;
         EditText quantityView;
 
         public OrderViewHolder(View itemView) {
@@ -62,8 +73,10 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
             priceView = itemView.findViewById(R.id.tv_product_price);
             btnIncrease = itemView.findViewById(R.id.btn_increase);
             btnDecrease = itemView.findViewById(R.id.btn_decrease);
+//            delete = itemView.findViewById(R.id.delete);
         }
     }
+
 
     @NonNull
     @Override
@@ -90,10 +103,21 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
         holder.quantityView.setText(String.valueOf(order.getQuantity()));
         isBinding = false;
 
+        if (order.getQuantity() <= 1) {
+            holder.btnDecrease.setText("🗑"); // or use "Del" or a drawable icon
+        } else {
+            holder.btnDecrease.setText("−");
+        }
+
         // New watcher
         TextWatcher watcher = new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
 
             @Override
             public void afterTextChanged(Editable s) {
@@ -114,6 +138,7 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
 
         holder.quantityView.setTag(watcher);
         holder.quantityView.addTextChangedListener(watcher);
+//        holder.quantityView.requestFocus();
 
         // Increase
         holder.btnIncrease.setOnClickListener(v -> {
@@ -121,15 +146,24 @@ public class OrderAdapter extends RecyclerView.Adapter<OrderAdapter.OrderViewHol
             order.setQuantity(newQuantity);
             notifyItemChanged(holder.getAdapterPosition());
             onQuantityChanged.onQuantityChanged(order, newQuantity);
+
         });
 
-        // Decrease
+
         holder.btnDecrease.setOnClickListener(v -> {
-            double newQuantity = Math.max(1, order.getQuantity() - 1);
-            order.setQuantity(newQuantity);
-            notifyItemChanged(holder.getAdapterPosition());
-            onQuantityChanged.onQuantityChanged(order, newQuantity);
+            if (order.getQuantity() <= 1) {
+                // Delete if quantity is 1
+                onOrderDeleted.onDelete1(order);
+                System.out.println("deleted");
+            } else {
+                // Otherwise, decrease quantity
+                double newQuantity = order.getQuantity() - 1;
+                order.setQuantity(newQuantity);
+                notifyItemChanged(holder.getAdapterPosition());
+                onQuantityChanged.onQuantityChanged(order, newQuantity);
+            }
         });
+
     }
 
 

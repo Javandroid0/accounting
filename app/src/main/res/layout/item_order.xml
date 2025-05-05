@@ -11,21 +11,18 @@
         android:layout_width="152dp"
         android:layout_height="wrap_content"
         android:layout_weight="4"
-        android:text="Product Name" />
-
-    <TextView
-        android:id="@+id/emptySpace"
-        android:layout_width="152dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="4"
-        android:text="  " />
+        android:text="Product Name"
+        android:textSize="24sp" />
 
     <TextView
         android:id="@+id/tv_product_price"
         android:layout_width="152dp"
         android:layout_height="wrap_content"
         android:layout_weight="4"
-        android:text=" " />
+        android:gravity="center"
+        android:text=" "
+        android:textSize="20sp" />
+
 
     <Button
         android:id="@+id/btn_decrease"
@@ -40,8 +37,10 @@
         android:inputType="numberDecimal"
         android:text="1"
         android:gravity="center"
-        android:textSize="16sp" />
 
+        android:textSize="16sp" />
+    <!--    android:focusable="true"-->
+    <!--        android:focusableInTouchMode="true"   -->
 
     <Button
         android:id="@+id/btn_increase"

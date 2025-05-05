@@ -55,10 +55,11 @@ public class ScanOrderFragment extends Fragment {
         setupListeners();
         observeViewModel();
 
-        binding.editTextBarcode.requestFocus();
+//        binding.editTextBarcode.requestFocus();
 
 
     }
+
     private final ActivityResultLauncher<Intent> barcodeLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
@@ -70,6 +71,7 @@ public class ScanOrderFragment extends Fragment {
                     } else {
                         Toast.makeText(getContext(), "Cancelled", Toast.LENGTH_SHORT).show();
                     }
+//                    binding.editTextBarcode.requestFocus();
                 }
             }
     );
@@ -95,7 +97,9 @@ public class ScanOrderFragment extends Fragment {
         adapter = new OrderAdapter(
                 order -> viewModel.updateQuantity(order.getProductId(), order.getQuantity() + 1),
                 order -> viewModel.updateQuantity(order.getProductId(), Math.max(order.getQuantity() - 1, 1)),
-                (order, newQuantity) -> viewModel.updateQuantity(order.getProductId(), newQuantity)  // 🔥 Handle manual EditText update
+                (order, newQuantity) -> viewModel.updateQuantity(order.getProductId(), newQuantity), // 🔥 Handle manual EditText update
+//                order -> viewModel.deleteOrder(order.getProductId()) // ✅ Deletion logic
+                order -> viewModel.deleteOrder1(order.getProductId())
         );
 
 
@@ -111,7 +115,7 @@ public class ScanOrderFragment extends Fragment {
                 if (!barcode.isEmpty()) {
                     fetchProductAndAdd(barcode);
                     binding.editTextBarcode.setText("");  // 🔥 Clear for next scan
-                    binding.editTextBarcode.requestFocus();  // 🔥 Refocus for next scan
+//                    binding.editTextBarcode.requestFocus();  // 🔥 Refocus for next scan
                 }
                 return true;
             }
@@ -131,7 +135,6 @@ public class ScanOrderFragment extends Fragment {
         });
 
 
-
         binding.btnConfirmOrder.setOnClickListener(v -> {
             viewModel.confirmOrder();
             Toast.makeText(getContext(), "Order confirmed!", Toast.LENGTH_SHORT).show();
@@ -143,7 +146,7 @@ public class ScanOrderFragment extends Fragment {
 
             adapter.submitList(orders);
 
-            binding.textTotal.setText("Total: $" + viewModel.calculateTotal());
+            binding.textTotal.setText("جمع: " + viewModel.calculateTotal());
         });
     }
 
@@ -167,10 +170,11 @@ public class ScanOrderFragment extends Fragment {
 //                    Toast.makeText(getContext(), "Product not found", Toast.LENGTH_SHORT).show();
                     openAddProductFragment(barcode);
                 }
-                binding.editTextBarcode.requestFocus();  // 🔥 Refocus no matter what
+//                binding.editTextBarcode.requestFocus();  // 🔥 Refocus no matter what
             });
         });
     }
+
     private void openAddProductFragment(String barcode) {
         Bundle args = new Bundle();
         args.putString("scanned_barcode", barcode);
