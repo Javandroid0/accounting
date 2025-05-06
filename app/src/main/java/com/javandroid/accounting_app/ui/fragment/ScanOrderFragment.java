@@ -40,6 +40,19 @@ public class ScanOrderFragment extends Fragment {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
+    private final ActivityResultLauncher<Intent> barcodeLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                IntentResult intentResult = IntentIntegrator.parseActivityResult(result.getResultCode(), result.getData());
+                if (intentResult != null && intentResult.getContents() != null) {
+                    fetchProductAndAdd(intentResult.getContents().trim());
+                } else {
+                    Toast.makeText(getContext(), "Scan cancelled", Toast.LENGTH_SHORT).show();
+                }
+                refocusBarcodeInput();
+            }
+    );
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -50,72 +63,38 @@ public class ScanOrderFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         viewModel = new ViewModelProvider(requireActivity()).get(OrderViewModel.class);
-
         setupRecyclerView();
         setupListeners();
         observeViewModel();
-
-//        binding.editTextBarcode.requestFocus();
-
-
+        refocusBarcodeInput();
     }
-
-    private final ActivityResultLauncher<Intent> barcodeLauncher = registerForActivityResult(
-            new ActivityResultContracts.StartActivityForResult(),
-            result -> {
-                IntentResult intentResult = IntentIntegrator.parseActivityResult(result.getResultCode(), result.getData());
-                if (intentResult != null) {
-                    if (intentResult.getContents() != null) {
-                        String scannedBarcode = intentResult.getContents().trim();
-                        fetchProductAndAdd(scannedBarcode);
-                    } else {
-                        Toast.makeText(getContext(), "Cancelled", Toast.LENGTH_SHORT).show();
-                    }
-//                    binding.editTextBarcode.requestFocus();
-                }
-            }
-    );
-
-
-//    @Override
-//    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-//        super.onActivityResult(requestCode, resultCode, data);
-//
-//        IntentResult result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data);
-//        if (result != null) {
-//            System.out.println("aaa");
-//            if (result.getContents() != null) {
-//                String scannedBarcode = result.getContents().trim();
-//                fetchProductAndAdd(scannedBarcode);
-//            } else {
-//                Toast.makeText(getContext(), "Cancelled", Toast.LENGTH_SHORT).show();
-//            }
-//        }
-//    }
 
     private void setupRecyclerView() {
         adapter = new OrderAdapter(
                 order -> viewModel.updateQuantity(order.getProductId(), order.getQuantity() + 1),
-                order -> viewModel.updateQuantity(order.getProductId(), Math.max(order.getQuantity() - 1, 1)),
-                (order, newQuantity) -> viewModel.updateQuantity(order.getProductId(), newQuantity), // 🔥 Handle manual EditText update
-//                order -> viewModel.deleteOrder(order.getProductId()) // ✅ Deletion logic
+                order -> {
+                    if (order.getQuantity() <= 1) {
+                        viewModel.deleteOrder1(order.getProductId());
+                    } else {
+                        viewModel.updateQuantity(order.getProductId(), order.getQuantity() - 1);
+                    }
+                },
+                (order, newQuantity) -> viewModel.updateQuantity(order.getProductId(), newQuantity),
                 order -> viewModel.deleteOrder1(order.getProductId())
         );
-
 
         binding.recyclerView.setAdapter(adapter);
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
     }
 
     private void setupListeners() {
-        // Keyboard listener for hardware scanner
         binding.editTextBarcode.setOnKeyListener((v, keyCode, event) -> {
             if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
                 String barcode = binding.editTextBarcode.getText().toString().trim();
                 if (!barcode.isEmpty()) {
                     fetchProductAndAdd(barcode);
-                    binding.editTextBarcode.setText("");  // 🔥 Clear for next scan
-//                    binding.editTextBarcode.requestFocus();  // 🔥 Refocus for next scan
+                    binding.editTextBarcode.setText("");
+                    binding.editTextBarcode.requestFocus();
                 }
                 return true;
             }
@@ -123,37 +102,33 @@ public class ScanOrderFragment extends Fragment {
         });
 
         binding.btnAddManual.setOnClickListener(v -> {
-            IntentIntegrator integrator = IntentIntegrator.forSupportFragment(this);  // ✅ Important change
+            IntentIntegrator integrator = IntentIntegrator.forSupportFragment(this);
             integrator.setDesiredBarcodeFormats(IntentIntegrator.ALL_CODE_TYPES);
             integrator.setPrompt("Scan a barcode");
-            integrator.setCameraId(0);  // Use a specific camera
+            integrator.setCameraId(0);
             integrator.setBeepEnabled(true);
             integrator.setBarcodeImageEnabled(true);
-
-            Intent intent = integrator.createScanIntent();  // Create the Intent manually
-            barcodeLauncher.launch(intent);  // 🚀 Launch using ActivityResultLauncher
+            barcodeLauncher.launch(integrator.createScanIntent());
         });
-
 
         binding.btnConfirmOrder.setOnClickListener(v -> {
             viewModel.confirmOrder();
             Toast.makeText(getContext(), "Order confirmed!", Toast.LENGTH_SHORT).show();
+            adapter.submitList(null); // Optional: clear UI list after confirmation
+            refocusBarcodeInput();
         });
     }
 
     private void observeViewModel() {
         viewModel.getCurrentOrders().observe(getViewLifecycleOwner(), orders -> {
-
-            adapter.submitList(orders);
-
+            adapter.submitList(orders); // ListAdapter handles diffing and animations
             binding.textTotal.setText("جمع: " + viewModel.calculateTotal());
         });
     }
 
     private void fetchProductAndAdd(String barcode) {
         executor.execute(() -> {
-            Product product = viewModel.getProductByBarcode(barcode);  // This must not block the main thread
-
+            Product product = viewModel.getProductByBarcode(barcode);
             mainHandler.post(() -> {
                 if (product != null) {
                     Order order = new Order(
@@ -167,10 +142,9 @@ public class ScanOrderFragment extends Fragment {
                     );
                     viewModel.addOrUpdateProduct(order);
                 } else {
-//                    Toast.makeText(getContext(), "Product not found", Toast.LENGTH_SHORT).show();
                     openAddProductFragment(barcode);
                 }
-//                binding.editTextBarcode.requestFocus();  // 🔥 Refocus no matter what
+                refocusBarcodeInput();
             });
         });
     }
@@ -178,11 +152,14 @@ public class ScanOrderFragment extends Fragment {
     private void openAddProductFragment(String barcode) {
         Bundle args = new Bundle();
         args.putString("scanned_barcode", barcode);
-
-        // Use Navigation Component
         NavController navController = NavHostFragment.findNavController(this);
         navController.navigate(R.id.action_scanOrderFragment_to_addProductFragment, args);
     }
 
-
+    private void refocusBarcodeInput() {
+        binding.editTextBarcode.postDelayed(() -> {
+            binding.editTextBarcode.requestFocus();
+            binding.editTextBarcode.setSelection(binding.editTextBarcode.getText().length());
+        }, 150);
+    }
 }

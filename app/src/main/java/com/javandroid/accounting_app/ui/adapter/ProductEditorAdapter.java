@@ -31,10 +31,16 @@ public class ProductEditorAdapter extends RecyclerView.Adapter<ProductEditorAdap
         this.listener = listener;
     }
 
+    //    public void submitList(List<Product> products) {
+//        this.productList = products;
+//        notifyDataSetChanged();
+//    }
     public void submitList(List<Product> products) {
-        this.productList = products;
+        this.fullList = new ArrayList<>(products); // Keep a full copy for filtering
+        this.productList = new ArrayList<>(products);
         notifyDataSetChanged();
     }
+
 
     public List<Product> getCurrentProducts() {
         return productList;
@@ -98,4 +104,24 @@ public class ProductEditorAdapter extends RecyclerView.Adapter<ProductEditorAdap
             btnDelete = itemView.findViewById(R.id.btn_delete_product);
         }
     }
+
+    private List<Product> fullList = new ArrayList<>();
+
+
+    public void filter(String keyword) {
+        if (keyword == null || keyword.isEmpty()) {
+            productList = new ArrayList<>(fullList);
+        } else {
+            List<Product> filtered = new ArrayList<>();
+            for (Product p : fullList) {
+                if (p.getName().toLowerCase().contains(keyword.toLowerCase()) ||
+                        p.getBarcode().toLowerCase().contains(keyword.toLowerCase())) {
+                    filtered.add(p);
+                }
+            }
+            productList = filtered;
+        }
+        notifyDataSetChanged();
+    }
+
 }

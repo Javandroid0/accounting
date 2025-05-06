@@ -4,6 +4,16 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <EditText
+        android:id="@+id/et_search"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Search..."
+        android:inputType="text"
+        android:drawableLeft="@android:drawable/ic_menu_search"
+        android:padding="8dp" />
+
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_products"
         android:layout_width="match_parent"

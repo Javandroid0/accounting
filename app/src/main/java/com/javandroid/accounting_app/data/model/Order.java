@@ -3,6 +3,8 @@ package com.javandroid.accounting_app.data.model;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
+import java.util.Objects;
+
 @Entity(tableName = "orders")
 public class Order {
     @PrimaryKey(autoGenerate = true)
@@ -31,6 +33,24 @@ public class Order {
         this.productBuyPrice = productBuyPrice;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Order)) return false;
+        Order order = (Order) o;
+        return userId == order.userId &&
+                productId == order.productId &&
+                quantity == order.quantity &&
+                Double.compare(order.productSellPrice, productSellPrice) == 0 &&
+                Double.compare(order.productBuyPrice, productBuyPrice) == 0 &&
+                Objects.equals(productName, order.productName) &&
+                Objects.equals(productBarcode, order.productBarcode);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(userId, productId, productName, productBarcode, quantity, productSellPrice, productBuyPrice);
+    }
 
     // Getters & Setters
     public int getOrderId() {

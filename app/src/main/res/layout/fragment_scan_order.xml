@@ -15,8 +15,8 @@
             android:layout_weight="2"
             android:layout_height="wrap_content"
             android:hint="Enter barcode"
-            android:focusable="false"
-            android:focusableInTouchMode="false"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
             android:inputType="text" />
 
         <Button

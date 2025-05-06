@@ -2,11 +2,14 @@ package com.javandroid.accounting_app.ui.fragment;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -72,7 +75,7 @@ public class ProductEditorFragment extends Fragment {
 
         btnSave.setOnClickListener(v -> {
             List<Product> updatedProducts = adapter.getCurrentProducts();
-            
+
             productViewModel.updateProducts(updatedProducts);
         });
         Button btnLoadCsv = view.findViewById(R.id.btn_load_csv);
@@ -83,6 +86,23 @@ public class ProductEditorFragment extends Fragment {
             }
             Toast.makeText(getContext(), "Products loaded from CSV!", Toast.LENGTH_SHORT).show();
         });
+
+        EditText etSearch = view.findViewById(R.id.et_search);
+        etSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                adapter.filter(s.toString());
+            }
+        });
+
 
     }
 

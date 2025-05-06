@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.javandroid.accounting_app.R;
 import com.javandroid.accounting_app.data.model.Order;
+import com.javandroid.accounting_app.data.model.Product;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +29,7 @@ public class OrderEditorAdapter extends RecyclerView.Adapter<OrderEditorAdapter.
         void onDelete(Order order);
     }
 
-    private final List<Order> orderList = new ArrayList<>();
+    private List<Order> orderList = new ArrayList<>();
     private final OnOrderChangeListener listener;
 
     public OrderEditorAdapter(OnOrderChangeListener listener) {
@@ -38,8 +39,14 @@ public class OrderEditorAdapter extends RecyclerView.Adapter<OrderEditorAdapter.
     public void submitList(List<Order> orders) {
         orderList.clear();
         orderList.addAll(orders);
+        fullList.addAll(orders);
         notifyDataSetChanged();
     }
+//    public void submitList(List<Product> products) {
+//        this.fullList = new ArrayList<>(products); // Keep a full copy for filtering
+//        this.productList = new ArrayList<>(products);
+//        notifyDataSetChanged();
+//    }
 
     public List<Order> getCurrentOrders() {
         return orderList;
@@ -119,5 +126,24 @@ public class OrderEditorAdapter extends RecyclerView.Adapter<OrderEditorAdapter.
             priceInput = itemView.findViewById(R.id.et_price);
             btnDelete = itemView.findViewById(R.id.btn_delete_order);
         }
+    }
+
+    private List<Order> fullList = new ArrayList<>();
+
+
+    public void filter(String keyword) {
+        if (keyword == null || keyword.isEmpty()) {
+            orderList = new ArrayList<>(fullList);
+        } else {
+            List<Order> filtered = new ArrayList<>();
+            for (Order p : fullList) {
+                if (p.getProductName().toLowerCase().contains(keyword.toLowerCase()) ||
+                        p.getProductBarcode().toLowerCase().contains(keyword.toLowerCase())) {
+                    filtered.add(p);
+                }
+            }
+            orderList = filtered;
+        }
+        notifyDataSetChanged();
     }
 }
