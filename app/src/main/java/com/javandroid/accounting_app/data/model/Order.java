@@ -36,9 +36,8 @@ public class Order {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Order)) return false;
-        Order order = (Order) o;
-        return userId == order.userId &&
+        if (!(o instanceof Order order)) return false;
+        return Objects.equals(userId, order.userId) &&
                 productId == order.productId &&
                 quantity == order.quantity &&
                 Double.compare(order.productSellPrice, productSellPrice) == 0 &&

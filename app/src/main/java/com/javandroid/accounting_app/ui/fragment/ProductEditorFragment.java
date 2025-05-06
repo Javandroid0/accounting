@@ -1,6 +1,8 @@
 package com.javandroid.accounting_app.ui.fragment;
 
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -12,6 +14,8 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -32,16 +36,39 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+
 public class ProductEditorFragment extends Fragment {
 
     private ProductViewModel productViewModel;
     private ProductEditorAdapter adapter;
+
+    private ActivityResultLauncher<Intent> csvFilePickerLauncher;
     private static final String TAG = "ProductEditorFragment";
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+
+
+        csvFilePickerLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == getActivity().RESULT_OK && result.getData() != null) {
+                        Uri uri = result.getData().getData();
+                        if (uri != null) {
+                            List<Product> csvProducts = loadProductsFromUri(requireContext(), uri);
+                            for (Product p : csvProducts) {
+                                productViewModel.insertProduct(p);
+                            }
+                            Toast.makeText(getContext(), "Products loaded from selected CSV!", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+        );
+
+
         return inflater.inflate(R.layout.fragment_product_editor, container, false);
+
     }
 
     @Override
@@ -79,13 +106,21 @@ public class ProductEditorFragment extends Fragment {
             productViewModel.updateProducts(updatedProducts);
         });
         Button btnLoadCsv = view.findViewById(R.id.btn_load_csv);
+//        btnLoadCsv.setOnClickListener(v -> {
+//            List<Product> csvProducts = loadProductsFromCsv(requireContext());
+//            for (Product p : csvProducts) {
+//                productViewModel.insertProduct(p);
+//            }
+//            Toast.makeText(getContext(), "Products loaded from CSV!", Toast.LENGTH_SHORT).show();
+//        });
+
         btnLoadCsv.setOnClickListener(v -> {
-            List<Product> csvProducts = loadProductsFromCsv(requireContext());
-            for (Product p : csvProducts) {
-                productViewModel.insertProduct(p);
-            }
-            Toast.makeText(getContext(), "Products loaded from CSV!", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.setType("text/*"); // You can use "text/csv" or "application/csv"
+            intent.addCategory(Intent.CATEGORY_OPENABLE);
+            csvFilePickerLauncher.launch(intent);
         });
+
 
         EditText etSearch = view.findViewById(R.id.et_search);
         etSearch.addTextChangedListener(new TextWatcher() {
@@ -105,6 +140,30 @@ public class ProductEditorFragment extends Fragment {
 
 
     }
+
+
+    private List<Product> loadProductsFromUri(Context context, Uri uri) {
+        List<Product> productList = new ArrayList<>();
+        try (InputStream inputStream = context.getContentResolver().openInputStream(uri);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] tokens = line.split(",");
+                if (tokens.length >= 4) {
+                    Product product = new Product();
+                    product.setBarcode(tokens[0].trim());
+                    product.setName(tokens[1].trim());
+                    product.setSellPrice(Double.parseDouble(tokens[2].trim()));
+                    product.setBuyPrice(Double.parseDouble(tokens[3].trim()));
+                    productList.add(product);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return productList;
+    }
+
 
     private List<Product> loadProductsFromCsv(Context context) {
         List<Product> productList = new ArrayList<>();

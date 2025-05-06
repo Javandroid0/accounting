@@ -29,6 +29,7 @@ import com.javandroid.accounting_app.databinding.FragmentScanOrderBinding;
 import com.javandroid.accounting_app.ui.adapter.OrderAdapter;
 import com.javandroid.accounting_app.ui.viewmodel.OrderViewModel;
 
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -44,7 +45,7 @@ public class ScanOrderFragment extends Fragment {
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
                 IntentResult intentResult = IntentIntegrator.parseActivityResult(result.getResultCode(), result.getData());
-                if (intentResult != null && intentResult.getContents() != null) {
+                if (intentResult.getContents() != null) {
                     fetchProductAndAdd(intentResult.getContents().trim());
                 } else {
                     Toast.makeText(getContext(), "Scan cancelled", Toast.LENGTH_SHORT).show();
@@ -122,6 +123,7 @@ public class ScanOrderFragment extends Fragment {
     private void observeViewModel() {
         viewModel.getCurrentOrders().observe(getViewLifecycleOwner(), orders -> {
             adapter.submitList(orders); // ListAdapter handles diffing and animations
+//            adapter.submitList(new ArrayList<>(orders));
             binding.textTotal.setText("جمع: " + viewModel.calculateTotal());
         });
     }
@@ -131,6 +133,7 @@ public class ScanOrderFragment extends Fragment {
             Product product = viewModel.getProductByBarcode(barcode);
             mainHandler.post(() -> {
                 if (product != null) {
+                    System.out.println(product.getName());
                     Order order = new Order(
                             viewModel.getCurrentUserId(),
                             product.getId(),

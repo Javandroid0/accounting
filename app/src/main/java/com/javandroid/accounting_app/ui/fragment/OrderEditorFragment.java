@@ -1,6 +1,7 @@
 package com.javandroid.accounting_app.ui.fragment;
 
 import android.os.Bundle;
+import android.os.Environment;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -8,6 +9,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -22,6 +24,9 @@ import com.javandroid.accounting_app.ui.adapter.OrderEditorAdapter;
 import com.javandroid.accounting_app.ui.viewmodel.OrderViewModel;
 //import com.javandroid.accounting_app.viewmodel.OrderViewModel;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.List;
 
 public class OrderEditorFragment extends Fragment {
@@ -91,5 +96,39 @@ public class OrderEditorFragment extends Fragment {
             }
         });
 
+        Button btnExport = view.findViewById(R.id.btn_export_csv);
+        btnExport.setOnClickListener(v -> {
+            List<Order> orders = adapter.getCurrentOrders();
+            exportOrdersToCsv(orders);
+        });
+
+
     }
+
+    private void exportOrdersToCsv(List<Order> orders) {
+        String filename = "orders_" + System.currentTimeMillis() + ".csv";
+
+        // Internal storage (private to app)
+        File file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), filename);
+        System.out.println(file.getAbsolutePath());
+
+        try (FileWriter writer = new FileWriter(file)) {
+            writer.append("Barcode,Name,Quantity,SellPrice,BuyPrice\n");
+
+            for (Order order : orders) {
+                writer.append(order.getProductBarcode()).append(",");
+                writer.append(order.getProductName()).append(",");
+                writer.append(String.valueOf(order.getQuantity())).append(",");
+                writer.append(String.valueOf(order.getProductSellPrice())).append(",");
+                writer.append(String.valueOf(order.getProductBuyPrice())).append("\n");
+            }
+
+            writer.flush();
+            Toast.makeText(requireContext(), "Exported to " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(requireContext(), "Failed to export CSV", Toast.LENGTH_SHORT).show();
+        }
+    }
+
 }

@@ -105,7 +105,31 @@ public class OrderAdapter extends ListAdapter<Order, OrderAdapter.OrderViewHolde
         holder.btnDecrease.setText(order.getQuantity() <= 1 ? "🗑" : "−");
 
         // Add TextWatcher for manual edits
-        TextWatcher watcher = new TextWatcher() {
+        TextWatcher watcher = createQuantityWatcher(order, holder.quantityView);
+        holder.quantityView.setTag(watcher);
+        holder.quantityView.addTextChangedListener(watcher);
+
+        holder.btnIncrease.setOnClickListener(v -> {
+            double newQuantity = order.getQuantity() + 1;
+            order.setQuantity(newQuantity);
+            notifyItemChanged(holder.getBindingAdapterPosition());
+            onQuantityChanged.onQuantityChanged(order, newQuantity);
+        });
+
+        holder.btnDecrease.setOnClickListener(v -> {
+            if (order.getQuantity() <= 1) {
+                onOrderDeleted.onDelete1(order);
+            } else {
+                double newQuantity = order.getQuantity() - 1;
+                order.setQuantity(newQuantity);
+                notifyItemChanged(holder.getBindingAdapterPosition());
+                onQuantityChanged.onQuantityChanged(order, newQuantity);
+            }
+        });
+    }
+
+    private TextWatcher createQuantityWatcher(Order order, EditText quantityView) {
+        return new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
             }
@@ -125,31 +149,10 @@ public class OrderAdapter extends ListAdapter<Order, OrderAdapter.OrderViewHolde
                         order.setQuantity(quantity);
                         onQuantityChanged.onQuantityChanged(order, quantity);
                     } catch (NumberFormatException e) {
-                        holder.quantityView.setError("Invalid number");
+                        quantityView.setError("Invalid number");
                     }
                 }
             }
         };
-
-        holder.quantityView.setTag(watcher);
-        holder.quantityView.addTextChangedListener(watcher);
-
-        holder.btnIncrease.setOnClickListener(v -> {
-            double newQuantity = order.getQuantity() + 1;
-            order.setQuantity(newQuantity);
-            notifyItemChanged(holder.getAdapterPosition());
-            onQuantityChanged.onQuantityChanged(order, newQuantity);
-        });
-
-        holder.btnDecrease.setOnClickListener(v -> {
-            if (order.getQuantity() <= 1) {
-                onOrderDeleted.onDelete1(order);
-            } else {
-                double newQuantity = order.getQuantity() - 1;
-                order.setQuantity(newQuantity);
-                notifyItemChanged(holder.getAdapterPosition());
-                onQuantityChanged.onQuantityChanged(order, newQuantity);
-            }
-        });
     }
 }

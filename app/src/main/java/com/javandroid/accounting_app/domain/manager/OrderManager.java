@@ -1,6 +1,7 @@
 package com.javandroid.accounting_app.domain.manager;
 
 import com.javandroid.accounting_app.data.model.Order;
+import com.javandroid.accounting_app.data.model.Product;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -34,6 +34,7 @@ public class OrderViewModel extends AndroidViewModel {
         currentOrders.setValue(orderManager.getOrders());
     }
 
+
     public void updateQuantity(int productId, double newQuantity) {
         orderManager.updateQuantity(productId, newQuantity);
         currentOrders.setValue(orderManager.getOrders());
