@@ -16,6 +16,7 @@ recyclerview = "1.4.0"
 annotations = "23.0.0"
 navigationFragment = "2.8.9"
 navigationUi = "2.8.9"
+escposThermalprinterAndroid = "3.3.0"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -35,6 +36,7 @@ lifecycle-viewmodel = { group = "androidx.lifecycle", name = "lifecycle-viewmode
 recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
 navigation-fragment = { group = "androidx.navigation", name = "navigation-fragment", version.ref = "navigationFragment" }
 navigation-ui = { group = "androidx.navigation", name = "navigation-ui", version.ref = "navigationUi" }
+escpos-thermalprinter-android = { group = "com.github.DantSu", name = "ESCPOS-ThermalPrinter-Android", version.ref = "escposThermalprinterAndroid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -1,6 +1,9 @@
 package com.javandroid.accounting_app.ui.fragment;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -14,12 +17,18 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.dantsu.escposprinter.EscPosPrinter;
+import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
+import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 import com.javandroid.accounting_app.R;
@@ -27,17 +36,26 @@ import com.javandroid.accounting_app.data.model.Order;
 import com.javandroid.accounting_app.data.model.Product;
 import com.javandroid.accounting_app.databinding.FragmentScanOrderBinding;
 import com.javandroid.accounting_app.ui.adapter.OrderAdapter;
+import com.javandroid.accounting_app.ui.viewmodel.CustomerViewModel;
 import com.javandroid.accounting_app.ui.viewmodel.OrderViewModel;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
 
 public class ScanOrderFragment extends Fragment {
 
     private FragmentScanOrderBinding binding;
     private OrderViewModel viewModel;
     private OrderAdapter adapter;
+
+    private CustomerViewModel customerViewModel;
+
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
@@ -64,10 +82,104 @@ public class ScanOrderFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         viewModel = new ViewModelProvider(requireActivity()).get(OrderViewModel.class);
+        customerViewModel = new ViewModelProvider(requireActivity()).get(CustomerViewModel.class);
+
         setupRecyclerView();
         setupListeners();
+        binding.btnPrintOrder.setOnClickListener(v -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                ensureBluetoothPermissions();
+            }
+
+            List<Order> orders = viewModel.getCurrentOrders().getValue();
+            if (orders == null || orders.isEmpty()) {
+                Toast.makeText(getContext(), "No orders to print", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            String currentDateTime = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(new Date());
+
+            StringBuilder receipt = new StringBuilder();
+            receipt.append("[C]<b>Order Receipt</b>\n");
+            receipt.append("[C]").append(currentDateTime).append("\n");
+            receipt.append("[C]-----------------------------\n");
+            receipt.append("[L]Qty | Item           | Total\n");
+
+            for (Order order : orders) {
+                double totalPrice = order.getQuantity() * order.getProductSellPrice();
+                receipt.append("[L]")
+                        .append(order.getQuantity()).append("             X ")
+                        .append(order.getProductName())
+                        .append(" [R]")
+                        .append(totalPrice)
+                        .append("\n");
+            }
+
+            receipt.append("[C]-----------------------------\n");
+            receipt.append("[R]Total: ").append(viewModel.calculateTotal()).append("\n");
+            receipt.append("\n[C]Thank you!\n\n");
+
+            printReceipt(receipt.toString());
+        });
+
+
         observeViewModel();
+        observeCustomer();
         refocusBarcodeInput();
+
+
+    }
+
+
+    private void ensureBluetoothPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            List<String> permissionsToRequest = new ArrayList<>();
+
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_CONNECT)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT);
+            }
+
+            if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.BLUETOOTH_SCAN)
+                    != PackageManager.PERMISSION_GRANTED) {
+                permissionsToRequest.add(Manifest.permission.BLUETOOTH_SCAN);
+            }
+
+            if (!permissionsToRequest.isEmpty()) {
+                ActivityCompat.requestPermissions(requireActivity(),
+                        permissionsToRequest.toArray(new String[0]), 1001);
+            }
+        }
+    }
+
+
+    private void printReceipt(String text) {
+        try {
+            BluetoothConnection printerConnection = BluetoothPrintersConnections.selectFirstPaired();
+            if (printerConnection == null) {
+                Toast.makeText(getContext(), "پرینتر بلوتوث پیدا نشد", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            EscPosPrinter printer = new EscPosPrinter(printerConnection, 203, 48f, 32);
+            printer.printFormattedText(text);
+            Toast.makeText(getContext(), "چاپ انجام شد", Toast.LENGTH_SHORT).show();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(getContext(), "خطا در چاپ: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+
+    private void observeCustomer() {
+        customerViewModel.getSelectedCustomer().observe(getViewLifecycleOwner(), customer -> {
+            if (customer != null) {
+                binding.textViewCustomerName.setText("Current: " + customer.getName());
+            } else {
+                binding.textViewCustomerName.setText("Current: None");
+            }
+        });
     }
 
     private void setupRecyclerView() {
@@ -90,7 +202,7 @@ public class ScanOrderFragment extends Fragment {
 
     private void setupListeners() {
         binding.editTextBarcode.setOnKeyListener((v, keyCode, event) -> {
-            if (event.getAction() == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_ENTER) {
+            if (event.getAction() == KeyEvent.ACTION_UP && keyCode == KeyEvent.KEYCODE_ENTER) {
                 String barcode = binding.editTextBarcode.getText().toString().trim();
                 if (!barcode.isEmpty()) {
                     fetchProductAndAdd(barcode);
@@ -117,8 +229,59 @@ public class ScanOrderFragment extends Fragment {
             Toast.makeText(getContext(), "Order confirmed!", Toast.LENGTH_SHORT).show();
             adapter.submitList(null); // Optional: clear UI list after confirmation
             refocusBarcodeInput();
+//            List<Order> confirmedOrders = viewModel.getCurrentOrders().getValue();
+//            if (confirmedOrders == null || confirmedOrders.isEmpty()) {
+//                Toast.makeText(getContext(), "No items to confirm", Toast.LENGTH_SHORT).show();
+//                return;
+//            }
+//
+//            viewModel.confirmOrder(); // still saves to DB
+//
+//// Create receipt text
+//            StringBuilder receiptBuilder = new StringBuilder();
+//            receiptBuilder.append("[C]<b>Order Receipt</b>\n");
+//            receiptBuilder.append("[C]-----------------------------\n");
+//
+//            for (Order order : confirmedOrders) {
+//                receiptBuilder.append("[L]")
+//                        .append(order.getProductName())
+//                        .append(" x")
+//                        .append(order.getQuantity())
+//                        .append(" - ")
+//                        .append(order.getProductSellPrice())
+//                        .append("\n");
+//            }
+//
+//            receiptBuilder.append("[C]-----------------------------\n");
+//            receiptBuilder.append("[R]Total: ").append(viewModel.calculateTotal()).append("\n");
+//            receiptBuilder.append("\n\n[C]Thank you!\n\n\n");
+//
+//// Call print method
+//            printViaBluetooth(receiptBuilder.toString());
+//
+//            Toast.makeText(getContext(), "Order confirmed!", Toast.LENGTH_SHORT).show();
+//            adapter.submitList(null); // Clear UI list after confirmation
+//            refocusBarcodeInput();
+
         });
     }
+
+
+//    private void printViaBluetooth(String text) {
+//        try {
+//            BluetoothConnection printerConnection = BluetoothPrintersConnections.selectFirstPaired();
+//            if (printerConnection == null) {
+//                Toast.makeText(getContext(), "No Bluetooth printer found", Toast.LENGTH_SHORT).show();
+//                return;
+//            }
+//
+//            EscPosPrinter printer = new EscPosPrinter(printerConnection, 203, 48f, 32);
+//            printer.printFormattedText(text);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            Toast.makeText(getContext(), "Printing failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+//        }
+//    }
 
     private void observeViewModel() {
         viewModel.getCurrentOrders().observe(getViewLifecycleOwner(), orders -> {
@@ -126,6 +289,7 @@ public class ScanOrderFragment extends Fragment {
 //            adapter.submitList(new ArrayList<>(orders));
             binding.textTotal.setText("جمع: " + viewModel.calculateTotal());
         });
+
     }
 
     private void fetchProductAndAdd(String barcode) {

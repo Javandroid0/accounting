@@ -8,21 +8,27 @@ import androidx.room.RoomDatabase;
 import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 
+import com.javandroid.accounting_app.data.dao.CustomerDao;
 import com.javandroid.accounting_app.data.dao.OrderDao;
 import com.javandroid.accounting_app.data.dao.ProductDao;
 import com.javandroid.accounting_app.data.dao.UserDao;
+import com.javandroid.accounting_app.data.model.Customer;
 import com.javandroid.accounting_app.data.model.Order;
 import com.javandroid.accounting_app.data.model.Product;
 import com.javandroid.accounting_app.data.model.User;
 
-@Database(entities = {Product.class, Order.class, User.class}, version = 3, exportSchema = false)
+@Database(entities = {Product.class, Order.class, User.class, Customer.class}, version = 3, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
 
     private static volatile AppDatabase instance;
 
     public abstract ProductDao productDao();
+
     public abstract OrderDao orderDao();
+
     public abstract UserDao userDao();
+
+    public abstract CustomerDao customerDao();
 
     public static AppDatabase getInstance(Context context) {
         if (instance == null) {
@@ -49,9 +55,15 @@ public abstract class AppDatabase extends RoomDatabase {
     public static final Migration MIGRATION_2_3 = new Migration(2, 3) {
         @Override
         public void migrate(SupportSQLiteDatabase database) {
-            // Add the new column with a default value
+            // Add new column to Product
             database.execSQL("ALTER TABLE Product ADD COLUMN description TEXT");
+
+            // Create customers table
+            database.execSQL("CREATE TABLE IF NOT EXISTS customers (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "name TEXT NOT NULL)");
         }
     };
+
 
 }

@@ -46,6 +46,7 @@ dependencies {
     implementation(libs.activity)
     implementation(libs.navigation.fragment)
     implementation(libs.navigation.ui)
+    implementation(libs.escpos.thermalprinter.android)
     annotationProcessor(libs.room.compiler)
 //    implementation(libs.room.compiler)
     implementation(libs.room.runtime)
