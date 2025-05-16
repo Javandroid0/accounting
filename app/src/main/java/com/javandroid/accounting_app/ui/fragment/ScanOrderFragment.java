@@ -120,7 +120,7 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+            @Nullable Bundle savedInstanceState) {
         binding = FragmentScanOrderBinding.inflate(inflater, container, false);
         return binding.getRoot();
     }
@@ -450,7 +450,7 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
                             Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
 
                 ActivityCompat.requestPermissions(requireActivity(),
-                        new String[]{
+                        new String[] {
                                 Manifest.permission.BLUETOOTH,
                                 Manifest.permission.BLUETOOTH_ADMIN,
                                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -721,7 +721,7 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
+            @NonNull int[] grantResults) {
         if (requestCode == PERMISSION_REQUEST_BLUETOOTH) {
             boolean allGranted = true;
             for (int result : grantResults) {

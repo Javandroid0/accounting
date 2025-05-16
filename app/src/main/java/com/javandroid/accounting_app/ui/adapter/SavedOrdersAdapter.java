@@ -74,6 +74,15 @@ public class SavedOrdersAdapter extends ListAdapter<OrderEntity, SavedOrdersAdap
         submitList(filteredList);
     }
 
+    /**
+     * Get the current list of orders being displayed
+     *
+     * @return The current list of orders
+     */
+    public List<OrderEntity> getCurrentList() {
+        return super.getCurrentList();
+    }
+
     @NonNull
     @Override
     public OrderViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -112,7 +121,7 @@ public class SavedOrdersAdapter extends ListAdapter<OrderEntity, SavedOrdersAdap
         public void bind(OrderEntity order) {
             orderIdView.setText("Order #" + order.getOrderId());
             dateView.setText(order.getDate());
-            totalView.setText(String.format("$%.2f", order.getTotal()));
+            totalView.setText(String.format("%.2f", order.getTotal()));
             customerIdView.setText("Customer ID: " + order.getCustomerId());
         }
     }

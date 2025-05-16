@@ -1,5 +1,8 @@
 package com.javandroid.accounting_app.ui.fragment;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.text.Editable;
@@ -14,6 +17,8 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -30,8 +35,11 @@ import com.javandroid.accounting_app.ui.viewmodel.OrderViewModel;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.OnOrderItemChangeListener {
 
@@ -45,7 +53,7 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-            @Nullable Bundle savedInstanceState) {
+                             @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_order_editor, container, false);
     }
 
@@ -53,12 +61,42 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        // Check and request storage permissions
+        checkStoragePermissions();
+
         initViews(view);
         setupViewModels();
         setupRecyclerView();
         setupTabs();
         setupListeners(view);
         observeViewModels();
+    }
+
+    private void checkStoragePermissions() {
+        // On Android 10+ we can use the scoped storage and don't need explicit
+        // permissions
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            if (ContextCompat.checkSelfPermission(requireContext(),
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(
+                        new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                        1001);
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if (requestCode == 1001) {
+            if (grantResults.length > 0 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(requireContext(),
+                        "Storage permission is needed to export data",
+                        Toast.LENGTH_LONG).show();
+            }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
     }
 
     private void initViews(View view) {
@@ -145,12 +183,24 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
         });
 
         btnExport.setOnClickListener(v -> {
-            List<OrderItemEntity> items = orderItemsAdapter.getCurrentList();
-            if (items != null && !items.isEmpty()) {
-                exportOrdersToCsv(items);
+            List<OrderEntity> orders = savedOrdersAdapter.getCurrentList();
+            if (orders != null && !orders.isEmpty()) {
+                exportAllOrdersData(orders);
             } else {
-                Toast.makeText(requireContext(), "No items to export", Toast.LENGTH_SHORT).show();
+                Toast.makeText(requireContext(), "No orders to export", Toast.LENGTH_SHORT).show();
             }
+//            if (tabLayout.getSelectedTabPosition() == 0) {
+//                // Current order tab
+//                List<OrderItemEntity> items = orderItemsAdapter.getCurrentList();
+//                if (items != null && !items.isEmpty()) {
+//                    exportOrdersToCsv(items);
+//                } else {
+//                    Toast.makeText(requireContext(), "No items to export", Toast.LENGTH_SHORT).show();
+//                }
+//            } else {
+//                // Saved orders tab
+//
+//            }
         });
 
         etSearch.addTextChangedListener(new TextWatcher() {
@@ -251,25 +301,148 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
     }
 
     private void exportOrdersToCsv(List<OrderItemEntity> items) {
-        String filename = "orders_" + System.currentTimeMillis() + ".csv";
-        File file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), filename);
+        // Create timestamp for the filename
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+        String filename = "current_order_" + timestamp + ".csv";
+
+        // Create file in the Downloads directory
+        File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        if (!downloadsDir.exists()) {
+            downloadsDir.mkdirs();
+        }
+
+        File file = new File(downloadsDir, filename);
 
         try (FileWriter writer = new FileWriter(file)) {
-            writer.append("Barcode,Name,Quantity,SellPrice,BuyPrice\n");
+            // Write headers
+            writer.append("Item ID,Product ID,Product Name,Barcode,Quantity,Buy Price,Sell Price,Item Total\n");
 
+            // Write each item
             for (OrderItemEntity item : items) {
-                writer.append(item.getBarcode()).append(",");
-                writer.append(item.getProductName()).append(",");
+                writer.append(String.valueOf(item.getItemId())).append(",");
+                writer.append(item.getProductId() != null ? String.valueOf(item.getProductId()) : "").append(",");
+                writer.append(escapeCsvField(item.getProductName())).append(",");
+                writer.append(escapeCsvField(item.getBarcode())).append(",");
                 writer.append(String.valueOf(item.getQuantity())).append(",");
+                writer.append(String.valueOf(item.getBuyPrice())).append(",");
                 writer.append(String.valueOf(item.getSellPrice())).append(",");
-                writer.append(String.valueOf(item.getBuyPrice())).append("\n");
+                writer.append(String.valueOf(item.getQuantity() * item.getSellPrice())).append("\n");
             }
 
             writer.flush();
-            Toast.makeText(requireContext(), "Exported to " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
+            Toast.makeText(requireContext(),
+                    "Current order exported to " + file.getAbsolutePath(),
+                    Toast.LENGTH_LONG).show();
         } catch (IOException e) {
             e.printStackTrace();
-            Toast.makeText(requireContext(), "Failed to export CSV", Toast.LENGTH_SHORT).show();
+            Toast.makeText(requireContext(),
+                    "Failed to export CSV: " + e.getMessage(),
+                    Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void exportAllOrdersData(List<OrderEntity> orders) {
+        // Create timestamp for the filename
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+        String filename = "orders_export_" + timestamp + ".csv";
+
+        // Create file in the Downloads directory
+        File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        if (!downloadsDir.exists()) {
+            downloadsDir.mkdirs();
+        }
+
+        File file = new File(downloadsDir, filename);
+
+        try (FileWriter writer = new FileWriter(file)) {
+            // Write headers for the CSV file
+            writer.append("Order ID,Date,Customer ID,User ID,Total");
+            writer.append(",Item ID,Product ID,Product Name,Barcode,Quantity,Buy Price,Sell Price,Item Total\n");
+
+            // For each order, get its items and write them all
+            for (OrderEntity order : orders) {
+                long orderId = order.getOrderId();
+
+                // We need to get the order items in a blocking way
+                final List<OrderItemEntity>[] orderItems = new List[1];
+                final boolean[] dataLoaded = new boolean[1];
+
+                // Observe the order items
+                orderViewModel.getOrderItems(orderId).observe(getViewLifecycleOwner(), items -> {
+                    orderItems[0] = items;
+                    dataLoaded[0] = true;
+                });
+
+                // Wait briefly for data to load (not ideal but simple approach)
+                // In production code, you might use a more sophisticated approach
+                int maxAttempts = 10;
+                for (int i = 0; i < maxAttempts && !dataLoaded[0]; i++) {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+
+                // If we got the items, write them to the CSV
+                if (orderItems[0] != null) {
+                    for (OrderItemEntity item : orderItems[0]) {
+                        // Order details
+                        writer.append(String.valueOf(order.getOrderId())).append(",");
+                        writer.append(order.getDate()).append(",");
+                        writer.append(String.valueOf(order.getCustomerId())).append(",");
+                        writer.append(String.valueOf(order.getUserId())).append(",");
+                        writer.append(String.valueOf(order.getTotal())).append(",");
+
+                        // Item details
+                        writer.append(String.valueOf(item.getItemId())).append(",");
+                        writer.append(item.getProductId() != null ? String.valueOf(item.getProductId()) : "")
+                                .append(",");
+                        writer.append(escapeCsvField(item.getProductName())).append(",");
+                        writer.append(escapeCsvField(item.getBarcode())).append(",");
+                        writer.append(String.valueOf(item.getQuantity())).append(",");
+                        writer.append(String.valueOf(item.getBuyPrice())).append(",");
+                        writer.append(String.valueOf(item.getSellPrice())).append(",");
+                        writer.append(String.valueOf(item.getQuantity() * item.getSellPrice())).append("\n");
+                    }
+                } else {
+                    // If we couldn't get the items, just write the order info with empty item
+                    // fields
+                    writer.append(String.valueOf(order.getOrderId())).append(",");
+                    writer.append(order.getDate()).append(",");
+                    writer.append(String.valueOf(order.getCustomerId())).append(",");
+                    writer.append(String.valueOf(order.getUserId())).append(",");
+                    writer.append(String.valueOf(order.getTotal())).append(",");
+                    writer.append(",,,,,,\n");
+                }
+            }
+
+            writer.flush();
+            Toast.makeText(requireContext(),
+                    "Orders exported to " + file.getAbsolutePath(),
+                    Toast.LENGTH_LONG).show();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            Toast.makeText(requireContext(),
+                    "Failed to export: " + e.getMessage(),
+                    Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // Helper method to properly escape CSV fields that might contain commas or
+    // quotes
+    private String escapeCsvField(String field) {
+        if (field == null) {
+            return "";
+        }
+
+        // If the field contains commas, quotes, or newlines, wrap it in quotes
+        if (field.contains(",") || field.contains("\"") || field.contains("\n")) {
+            // Replace any quotes with double quotes (CSV standard for escaping quotes)
+            return "\"" + field.replace("\"", "\"\"") + "\"";
+        }
+        return field;
     }
 }

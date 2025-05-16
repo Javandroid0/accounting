@@ -203,9 +203,23 @@ public class MainActivity extends AppCompatActivity
         } else if (id == R.id.action_customer_info) {
             openCustomerDrawer();
             return true;
+        } else if (id == R.id.action_backup_data) {
+            runManualBackup();
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    /**
+     * Run a manual backup of the database
+     */
+    private void runManualBackup() {
+        // Show a toast message
+        Toast.makeText(this, "Starting manual backup...", Toast.LENGTH_SHORT).show();
+
+        // Run the backup operation immediately
+        com.javandroid.accounting_app.data.backup.BackupScheduler.runBackupNow(this);
     }
 
     @Override
