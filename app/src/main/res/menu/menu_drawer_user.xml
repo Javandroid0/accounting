@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_all_users"
+            android:icon="@android:drawable/ic_menu_search"
+            android:title="All Users" />
+        <item
+            android:id="@+id/nav_add_user"
+            android:icon="@android:drawable/ic_menu_add"
+            android:title="Add New User" />
+    </group>
+    <item android:title="User Management">
+        <menu>
+            <item
+                android:id="@+id/nav_delete_user"
+                android:icon="@android:drawable/ic_menu_delete"
+                android:title="Delete User" />
+            <item
+                android:id="@+id/nav_edit_user"
+                android:icon="@android:drawable/ic_menu_edit"
+                android:title="Edit User" />
+        </menu>
+    </item>
+</menu> 

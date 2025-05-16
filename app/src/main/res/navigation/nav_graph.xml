@@ -3,7 +3,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/scanOrderFragment">
+    app:startDestination="@id/menuFragment">
+
+    <!-- Global actions -->
+    <action
+        android:id="@+id/action_global_addCustomerFragment"
+        app:destination="@id/addCustomerFragment" />
+        
+    <action
+        android:id="@+id/action_global_addUserFragment"
+        app:destination="@id/addUserFragment" />
 
     <!-- ScanOrderFragment -->
     <fragment
@@ -16,6 +25,9 @@
         <action
             android:id="@+id/action_scanOrderFragment_to_addProductFragment"
             app:destination="@id/addProductFragment" />
+        <action
+            android:id="@+id/action_scanOrderFragment_to_customerListFragment"
+            app:destination="@id/customerListFragment" />
     </fragment>
 
     <!-- AddProductFragment -->
@@ -24,16 +36,52 @@
         android:name="com.javandroid.accounting_app.ui.fragment.AddProductFragment"
         android:label="Add Product"
         tools:layout="@layout/fragment_add_product" />
+
     <fragment
         android:id="@+id/menuFragment"
+        android:name="com.javandroid.accounting_app.ui.fragment.MenuFragment"
+        android:label="Menu">
+        <action
+            android:id="@+id/action_menuFragment_to_scanOrderFragment"
+            app:destination="@id/scanOrderFragment" />
+        <action
+            android:id="@+id/action_menuFragment_to_orderEditorFragment"
+            app:destination="@id/orderEditorFragment" />
+        <action
+            android:id="@+id/action_menuFragment_to_productEditorFragment"
+            app:destination="@id/productEditorFragment" />
+        <action
+            android:id="@+id/action_menuFragment_to_customerListFragment"
+            app:destination="@id/customerListFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/orderEditorFragment"
         android:name="com.javandroid.accounting_app.ui.fragment.OrderEditorFragment"
-        android:label="MenuOrder"
+        android:label="Order Editor"
         tools:layout="@layout/fragment_order_editor" />
 
     <fragment
-        android:id="@+id/menuFragment1"
+        android:id="@+id/productEditorFragment"
         android:name="com.javandroid.accounting_app.ui.fragment.ProductEditorFragment"
-        android:label="MenuProduct"
+        android:label="Product Editor"
         tools:layout="@layout/fragment_product_editor" />
+
+    <fragment
+        android:id="@+id/customerListFragment"
+        android:name="com.javandroid.accounting_app.ui.fragment.CustomerListFragment"
+        android:label="Customer List" />
+        
+    <fragment
+        android:id="@+id/addCustomerFragment"
+        android:name="com.javandroid.accounting_app.ui.fragment.AddCustomerFragment"
+        android:label="Add Customer"
+        tools:layout="@layout/fragment_add_customer" />
+        
+    <fragment
+        android:id="@+id/addUserFragment"
+        android:name="com.javandroid.accounting_app.ui.fragment.AddUserFragment"
+        android:label="Add User"
+        tools:layout="@layout/fragment_add_user" />
 
 </navigation>

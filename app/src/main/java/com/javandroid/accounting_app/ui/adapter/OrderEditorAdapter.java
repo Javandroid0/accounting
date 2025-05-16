@@ -7,49 +7,69 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.javandroid.accounting_app.R;
-import com.javandroid.accounting_app.data.model.Order;
-import com.javandroid.accounting_app.data.model.Product;
+import com.javandroid.accounting_app.data.model.OrderItemEntity;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class OrderEditorAdapter extends RecyclerView.Adapter<OrderEditorAdapter.OrderEditorViewHolder> {
+public class OrderEditorAdapter extends ListAdapter<OrderItemEntity, OrderEditorAdapter.OrderEditorViewHolder> {
 
-    public interface OnOrderChangeListener {
-        void onQuantityChanged(Order order, double newQuantity);
+    private final OnOrderItemChangeListener listener;
+    private List<OrderItemEntity> originalList;
+    private List<OrderItemEntity> filteredList;
 
-        void onPriceChanged(Order order, double newPrice);
+    private static final DiffUtil.ItemCallback<OrderItemEntity> DIFF_CALLBACK = new DiffUtil.ItemCallback<OrderItemEntity>() {
+        @Override
+        public boolean areItemsTheSame(@NonNull OrderItemEntity oldItem, @NonNull OrderItemEntity newItem) {
+            return oldItem.getItemId() == newItem.getItemId();
+        }
 
-        void onDelete(Order order);
-    }
+        @Override
+        public boolean areContentsTheSame(@NonNull OrderItemEntity oldItem, @NonNull OrderItemEntity newItem) {
+            return oldItem.getQuantity() == newItem.getQuantity() &&
+                    oldItem.getSellPrice() == newItem.getSellPrice() &&
+                    oldItem.getProductName().equals(newItem.getProductName());
+        }
+    };
 
-    private List<Order> orderList = new ArrayList<>();
-    private final OnOrderChangeListener listener;
-
-    public OrderEditorAdapter(OnOrderChangeListener listener) {
+    public OrderEditorAdapter(OnOrderItemChangeListener listener) {
+        super(DIFF_CALLBACK);
         this.listener = listener;
+        this.originalList = new ArrayList<>();
+        this.filteredList = new ArrayList<>();
     }
 
-    public void submitList(List<Order> orders) {
-        orderList.clear();
-        orderList.addAll(orders);
-        fullList.addAll(orders);
-        notifyDataSetChanged();
+    @Override
+    public void submitList(List<OrderItemEntity> list) {
+        originalList = list != null ? new ArrayList<>(list) : new ArrayList<>();
+        super.submitList(list);
     }
-//    public void submitList(List<Product> products) {
-//        this.fullList = new ArrayList<>(products); // Keep a full copy for filtering
-//        this.productList = new ArrayList<>(products);
-//        notifyDataSetChanged();
-//    }
 
-    public List<Order> getCurrentOrders() {
-        return orderList;
+    public void filter(String query) {
+        if (query == null || query.isEmpty()) {
+            submitList(originalList);
+            return;
+        }
+
+        filteredList = new ArrayList<>();
+        String lowerCaseQuery = query.toLowerCase().trim();
+
+        for (OrderItemEntity item : originalList) {
+            if (item.getProductName().toLowerCase().contains(lowerCaseQuery) ||
+                    item.getBarcode().toLowerCase().contains(lowerCaseQuery)) {
+                filteredList.add(item);
+            }
+        }
+        submitList(filteredList);
     }
 
     @NonNull
@@ -62,88 +82,128 @@ public class OrderEditorAdapter extends RecyclerView.Adapter<OrderEditorAdapter.
 
     @Override
     public void onBindViewHolder(@NonNull OrderEditorViewHolder holder, int position) {
-        Order order = orderList.get(position);
-
-        holder.nameText.setText(order.getProductName());
-
-        holder.quantityInput.setText(String.valueOf(order.getQuantity()));
-        holder.priceInput.setText(String.valueOf(order.getProductSellPrice()));
-
-        holder.quantityInput.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                try {
-                    double newQuantity = Double.parseDouble(s.toString());
-                    listener.onQuantityChanged(order, newQuantity);
-                } catch (NumberFormatException e) { /* Ignore invalid */ }
-            }
-        });
-
-
-        holder.priceInput.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                try {
-                    double newPrice = Double.parseDouble(s.toString());
-                    listener.onPriceChanged(order, newPrice);
-                } catch (NumberFormatException e) { /* Ignore invalid */ }
-            }
-        });
-
-        holder.btnDelete.setOnClickListener(v -> listener.onDelete(order));
+        OrderItemEntity item = getItem(position);
+        holder.bind(item);
     }
 
-    @Override
-    public int getItemCount() {
-        return orderList.size();
+    public interface OnOrderItemChangeListener {
+        void onQuantityChanged(OrderItemEntity item, double newQuantity);
+
+        void onPriceChanged(OrderItemEntity item, double newPrice);
+
+        void onDelete(OrderItemEntity item);
     }
 
-    static class OrderEditorViewHolder extends RecyclerView.ViewHolder {
-        TextView nameText;
-        EditText quantityInput, priceInput;
-        Button btnDelete;
+    class OrderEditorViewHolder extends RecyclerView.ViewHolder {
+        private final TextView productNameView;
+        private final EditText quantityEdit;
+        private final EditText priceEdit;
+        private final ImageButton decreaseButton;
+        private final ImageButton increaseButton;
+        //        private final Button deleteButton;
+        private OrderItemEntity currentItem;
 
         public OrderEditorViewHolder(@NonNull View itemView) {
             super(itemView);
-            nameText = itemView.findViewById(R.id.tv_product_name);
-            quantityInput = itemView.findViewById(R.id.et_quantity);
-            priceInput = itemView.findViewById(R.id.et_price);
-            btnDelete = itemView.findViewById(R.id.btn_delete_order);
+            productNameView = itemView.findViewById(R.id.product_name);
+            quantityEdit = itemView.findViewById(R.id.quantity_edit);
+            priceEdit = itemView.findViewById(R.id.price_edit);
+            decreaseButton = itemView.findViewById(R.id.decrease_button);
+            increaseButton = itemView.findViewById(R.id.increase_button);
+//            deleteButton = itemView.findViewById(R.id.delete_button);
+
+            setupListeners();
         }
-    }
 
-    private List<Order> fullList = new ArrayList<>();
-
-
-    public void filter(String keyword) {
-        if (keyword == null || keyword.isEmpty()) {
-            orderList = new ArrayList<>(fullList);
-        } else {
-            List<Order> filtered = new ArrayList<>();
-            for (Order p : fullList) {
-                if (p.getProductName().toLowerCase().contains(keyword.toLowerCase()) ||
-                        p.getProductBarcode().toLowerCase().contains(keyword.toLowerCase())) {
-                    filtered.add(p);
+        private void setupListeners() {
+            quantityEdit.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus) {
+                    quantityEdit.selectAll();
                 }
-            }
-            orderList = filtered;
+            });
+
+            quantityEdit.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                }
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {
+                    if (currentItem != null && s.length() > 0) {
+                        try {
+                            double newQuantity = Double.parseDouble(s.toString());
+                            listener.onQuantityChanged(currentItem, newQuantity);
+                        } catch (NumberFormatException e) {
+                            quantityEdit.setText(String.valueOf(currentItem.getQuantity()));
+                        }
+                    }
+                }
+            });
+
+            priceEdit.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+                }
+
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                }
+
+                @Override
+                public void afterTextChanged(Editable s) {
+                    if (currentItem != null && s.length() > 0) {
+                        try {
+                            double newPrice = Double.parseDouble(s.toString());
+                            listener.onPriceChanged(currentItem, newPrice);
+                        } catch (NumberFormatException e) {
+                            priceEdit.setText(String.valueOf(currentItem.getSellPrice()));
+                        }
+                    }
+                }
+            });
+
+            decreaseButton.setOnClickListener(v -> {
+                if (currentItem != null) {
+                    if (currentItem.getQuantity() <= 1) {
+                        listener.onDelete(currentItem);
+                    } else {
+                        double newQuantity = currentItem.getQuantity() - 1;
+                        quantityEdit.setText(String.valueOf(newQuantity));
+                        listener.onQuantityChanged(currentItem, newQuantity);
+                    }
+                }
+            });
+
+            increaseButton.setOnClickListener(v -> {
+                if (currentItem != null) {
+                    double newQuantity = currentItem.getQuantity() + 1;
+                    quantityEdit.setText(String.valueOf(newQuantity));
+                    listener.onQuantityChanged(currentItem, newQuantity);
+                }
+            });
+//
+//            deleteButton.setOnClickListener(v -> {
+//                if (currentItem != null) {
+//                    listener.onDelete(currentItem);
+//                }
+//            });
         }
-        notifyDataSetChanged();
+
+        public void bind(OrderItemEntity item) {
+            currentItem = item;
+            productNameView.setText(item.getProductName());
+            quantityEdit.setText(String.valueOf(item.getQuantity()));
+            priceEdit.setText(String.valueOf(item.getSellPrice()));
+
+            if (item.getQuantity() <= 1) {
+                decreaseButton.setImageResource(android.R.drawable.ic_menu_delete);
+            } else {
+                decreaseButton.setImageResource(android.R.drawable.ic_menu_add);
+            }
+        }
     }
 }

@@ -8,16 +8,16 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.javandroid.accounting_app.R;
-import com.javandroid.accounting_app.data.model.Product;
+import com.javandroid.accounting_app.data.model.ProductEntity;
 
 import java.util.List;
 
 public class ProductListAdapter extends RecyclerView.Adapter<ProductListAdapter.ProductViewHolder> {
 
-    private List<Product> productList;
+    private List<ProductEntity> productList;
     private OnItemClickListener onItemClickListener;
 
-    public ProductListAdapter(List<Product> productList, OnItemClickListener onItemClickListener) {
+    public ProductListAdapter(List<ProductEntity> productList, OnItemClickListener onItemClickListener) {
         this.productList = productList;
         this.onItemClickListener = onItemClickListener;
     }
@@ -30,7 +30,7 @@ public class ProductListAdapter extends RecyclerView.Adapter<ProductListAdapter.
 
     @Override
     public void onBindViewHolder(ProductViewHolder holder, int position) {
-        Product product = productList.get(position);
+        ProductEntity product = productList.get(position);
         holder.productName.setText(product.getName());
         holder.productPrice.setText(String.format("Price: $%.2f", product.getSellPrice()));
         holder.itemView.setOnClickListener(v -> onItemClickListener.onProductClick(product));
@@ -41,13 +41,13 @@ public class ProductListAdapter extends RecyclerView.Adapter<ProductListAdapter.
         return productList != null ? productList.size() : 0;
     }
 
-    public void updateProductList(List<Product> productList) {
+    public void updateProductList(List<ProductEntity> productList) {
         this.productList = productList;
         notifyDataSetChanged();
     }
 
     public interface OnItemClickListener {
-        void onProductClick(Product product);
+        void onProductClick(ProductEntity product);
     }
 
     public static class ProductViewHolder extends RecyclerView.ViewHolder {

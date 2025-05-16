@@ -7,33 +7,60 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
-import com.javandroid.accounting_app.data.model.Customer;
+import com.javandroid.accounting_app.data.model.CustomerEntity;
 import com.javandroid.accounting_app.data.repository.CustomerRepository;
 
 import java.util.List;
 
 public class CustomerViewModel extends AndroidViewModel {
 
-    private final LiveData<List<Customer>> customers;
-    private final MutableLiveData<Customer> selectedCustomer = new MutableLiveData<>();
-
-    private final CustomerRepository repository;
+    private final CustomerRepository customerRepository;
+    private final MutableLiveData<CustomerEntity> selectedCustomer = new MutableLiveData<>();
+    private final LiveData<List<CustomerEntity>> allCustomers;
 
     public CustomerViewModel(@NonNull Application application) {
         super(application);
-        repository = new CustomerRepository(application);
-        customers = repository.getAllCustomers();
+        customerRepository = new CustomerRepository(application);
+        allCustomers = customerRepository.getAllCustomers();
     }
 
-    public LiveData<List<Customer>> getCustomers() {
-        return customers;
+    public LiveData<List<CustomerEntity>> getAllCustomers() {
+        return allCustomers;
     }
 
-    public void selectCustomer(Customer customer) {
+    public LiveData<List<CustomerEntity>> getCustomers() {
+        return allCustomers;
+    }
+
+    public void setSelectedCustomer(CustomerEntity customer) {
         selectedCustomer.setValue(customer);
     }
 
-    public LiveData<Customer> getSelectedCustomer() {
+    public void selectCustomer(CustomerEntity customer) {
+        selectedCustomer.setValue(customer);
+    }
+
+    public LiveData<CustomerEntity> getSelectedCustomer() {
         return selectedCustomer;
+    }
+
+    public void insert(CustomerEntity customer) {
+        customerRepository.insert(customer);
+    }
+
+    public void update(CustomerEntity customer) {
+        customerRepository.update(customer);
+    }
+
+    public void delete(CustomerEntity customer) {
+        customerRepository.delete(customer);
+    }
+
+    public void deleteAll() {
+        customerRepository.deleteAll();
+    }
+
+    public LiveData<CustomerEntity> getCustomerById(long customerId) {
+        return customerRepository.getCustomerById(customerId);
     }
 }

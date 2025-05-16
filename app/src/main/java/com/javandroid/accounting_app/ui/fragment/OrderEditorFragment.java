@@ -19,24 +19,26 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.javandroid.accounting_app.R;
-import com.javandroid.accounting_app.data.model.Order;
+import com.javandroid.accounting_app.data.model.OrderEntity;
+import com.javandroid.accounting_app.data.model.OrderItemEntity;
 import com.javandroid.accounting_app.ui.adapter.OrderEditorAdapter;
 import com.javandroid.accounting_app.ui.viewmodel.OrderViewModel;
-//import com.javandroid.accounting_app.viewmodel.OrderViewModel;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
-public class OrderEditorFragment extends Fragment {
+public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.OnOrderItemChangeListener {
 
     private OrderViewModel orderViewModel;
     private OrderEditorAdapter adapter;
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+                             @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_order_editor, container, false);
     }
 
@@ -46,41 +48,39 @@ public class OrderEditorFragment extends Fragment {
 
         RecyclerView recyclerView = view.findViewById(R.id.recycler_orders);
         Button btnSaveChanges = view.findViewById(R.id.btn_save_changes);
+        Button btnExport = view.findViewById(R.id.btn_export_csv);
+        EditText etSearch = view.findViewById(R.id.et_search);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
         orderViewModel = new ViewModelProvider(requireActivity()).get(OrderViewModel.class);
-
-        adapter = new OrderEditorAdapter(new OrderEditorAdapter.OnOrderChangeListener() {
-            @Override
-            public void onQuantityChanged(Order order, double newQuantity) {
-                order.setQuantity(newQuantity);
-            }
-
-            @Override
-            public void onPriceChanged(Order order, double newPrice) {
-                order.setProductSellPrice(newPrice);
-            }
-
-            @Override
-            public void onDelete(Order order) {
-                orderViewModel.deleteOrder2(order);
-            }
-        });
-
+        adapter = new OrderEditorAdapter(this);
         recyclerView.setAdapter(adapter);
 
-        // Load orders
-        orderViewModel.getAllOrders().observe(getViewLifecycleOwner(), orders -> {
-            adapter.submitList(orders);
+        // Load current order items
+        orderViewModel.getCurrentOrderItems().observe(getViewLifecycleOwner(), items -> {
+            if (items != null) {
+                adapter.submitList(new ArrayList<>(items));
+            }
         });
 
         btnSaveChanges.setOnClickListener(v -> {
-            List<Order> updatedOrders = adapter.getCurrentOrders();
-            orderViewModel.updateOrders(updatedOrders);
+            OrderEntity currentOrder = orderViewModel.getCurrentOrder().getValue();
+            if (currentOrder != null) {
+                orderViewModel.confirmOrder();
+                Toast.makeText(requireContext(), "Order saved successfully", Toast.LENGTH_SHORT).show();
+            }
         });
 
-        EditText etSearch = view.findViewById(R.id.et_search);
+        btnExport.setOnClickListener(v -> {
+            List<OrderItemEntity> items = adapter.getCurrentList();
+            if (items != null && !items.isEmpty()) {
+                exportOrdersToCsv(items);
+            } else {
+                Toast.makeText(requireContext(), "No items to export", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -95,32 +95,37 @@ public class OrderEditorFragment extends Fragment {
                 adapter.filter(s.toString());
             }
         });
-
-        Button btnExport = view.findViewById(R.id.btn_export_csv);
-        btnExport.setOnClickListener(v -> {
-            List<Order> orders = adapter.getCurrentOrders();
-            exportOrdersToCsv(orders);
-        });
-
-
     }
 
-    private void exportOrdersToCsv(List<Order> orders) {
-        String filename = "orders_" + System.currentTimeMillis() + ".csv";
+    @Override
+    public void onQuantityChanged(OrderItemEntity item, double newQuantity) {
+        orderViewModel.updateQuantity(item, newQuantity);
+    }
 
-        // Internal storage (private to app)
+    @Override
+    public void onPriceChanged(OrderItemEntity item, double newPrice) {
+        item.setSellPrice(newPrice);
+        orderViewModel.updateOrderItem(item);
+    }
+
+    @Override
+    public void onDelete(OrderItemEntity item) {
+        orderViewModel.deleteOrderItem(item);
+    }
+
+    private void exportOrdersToCsv(List<OrderItemEntity> items) {
+        String filename = "orders_" + System.currentTimeMillis() + ".csv";
         File file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), filename);
-        System.out.println(file.getAbsolutePath());
 
         try (FileWriter writer = new FileWriter(file)) {
             writer.append("Barcode,Name,Quantity,SellPrice,BuyPrice\n");
 
-            for (Order order : orders) {
-                writer.append(order.getProductBarcode()).append(",");
-                writer.append(order.getProductName()).append(",");
-                writer.append(String.valueOf(order.getQuantity())).append(",");
-                writer.append(String.valueOf(order.getProductSellPrice())).append(",");
-                writer.append(String.valueOf(order.getProductBuyPrice())).append("\n");
+            for (OrderItemEntity item : items) {
+                writer.append(item.getBarcode()).append(",");
+                writer.append(item.getProductName()).append(",");
+                writer.append(String.valueOf(item.getQuantity())).append(",");
+                writer.append(String.valueOf(item.getSellPrice())).append(",");
+                writer.append(String.valueOf(item.getBuyPrice())).append("\n");
             }
 
             writer.flush();
@@ -130,5 +135,4 @@ public class OrderEditorFragment extends Fragment {
             Toast.makeText(requireContext(), "Failed to export CSV", Toast.LENGTH_SHORT).show();
         }
     }
-
 }

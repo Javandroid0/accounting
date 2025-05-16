@@ -11,7 +11,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.javandroid.accounting_app.R;
-import com.javandroid.accounting_app.data.model.Product;
+import com.javandroid.accounting_app.data.model.ProductEntity;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,30 +19,27 @@ import java.util.List;
 public class ProductEditorAdapter extends RecyclerView.Adapter<ProductEditorAdapter.ProductViewHolder> {
 
     public interface OnProductChangeListener {
-        void onPriceChanged(Product product, double newSellPrice, double newBuyPrice);
+        void onPriceChanged(ProductEntity product, double newSellPrice, double newBuyPrice);
 
-        void onDelete(Product product);
+        void onQuantityChanged(ProductEntity product, double newQuantity);
+
+        void onDelete(ProductEntity product);
     }
 
-    private List<Product> productList = new ArrayList<>();
+    private List<ProductEntity> productList = new ArrayList<>();
     private final OnProductChangeListener listener;
 
     public ProductEditorAdapter(OnProductChangeListener listener) {
         this.listener = listener;
     }
 
-    //    public void submitList(List<Product> products) {
-//        this.productList = products;
-//        notifyDataSetChanged();
-//    }
-    public void submitList(List<Product> products) {
-        this.fullList = new ArrayList<>(products); // Keep a full copy for filtering
+    public void submitList(List<ProductEntity> products) {
+        this.fullList = new ArrayList<>(products);
         this.productList = new ArrayList<>(products);
         notifyDataSetChanged();
     }
 
-
-    public List<Product> getCurrentProducts() {
+    public List<ProductEntity> getCurrentProducts() {
         return productList;
     }
 
@@ -55,11 +52,22 @@ public class ProductEditorAdapter extends RecyclerView.Adapter<ProductEditorAdap
 
     @Override
     public void onBindViewHolder(@NonNull ProductViewHolder holder, int position) {
-        Product product = productList.get(position);
+        ProductEntity product = productList.get(position);
         System.out.println(product.getBarcode());
         holder.tvProductName.setText(product.getName());
         holder.etSellPrice.setText(String.valueOf(product.getSellPrice()));
         holder.etBuyPrice.setText(String.valueOf(product.getBuyPrice()));
+        holder.etQuantity.setText(String.valueOf(product.getStock()));
+
+        holder.etQuantity.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                try {
+                    double newQuantity = Double.parseDouble(holder.etQuantity.getText().toString());
+                    listener.onQuantityChanged(product, newQuantity);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        });
 
         holder.etSellPrice.setOnFocusChangeListener((v, hasFocus) -> {
             if (!hasFocus) {
@@ -93,27 +101,27 @@ public class ProductEditorAdapter extends RecyclerView.Adapter<ProductEditorAdap
 
     static class ProductViewHolder extends RecyclerView.ViewHolder {
         TextView tvProductName;
-        EditText etSellPrice, etBuyPrice;
+        EditText etSellPrice, etBuyPrice, etQuantity;
         Button btnDelete;
 
         ProductViewHolder(@NonNull View itemView) {
             super(itemView);
             tvProductName = itemView.findViewById(R.id.tv_product_name);
+            etQuantity = itemView.findViewById(R.id.et_quantity);
             etSellPrice = itemView.findViewById(R.id.et_price);
             etBuyPrice = itemView.findViewById(R.id.et_buy_price);
             btnDelete = itemView.findViewById(R.id.btn_delete_product);
         }
     }
 
-    private List<Product> fullList = new ArrayList<>();
-
+    private List<ProductEntity> fullList = new ArrayList<>();
 
     public void filter(String keyword) {
         if (keyword == null || keyword.isEmpty()) {
             productList = new ArrayList<>(fullList);
         } else {
-            List<Product> filtered = new ArrayList<>();
-            for (Product p : fullList) {
+            List<ProductEntity> filtered = new ArrayList<>();
+            for (ProductEntity p : fullList) {
                 if (p.getName().toLowerCase().contains(keyword.toLowerCase()) ||
                         p.getBarcode().toLowerCase().contains(keyword.toLowerCase())) {
                     filtered.add(p);

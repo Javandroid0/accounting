@@ -15,49 +15,52 @@ import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.javandroid.accounting_app.R;
-import com.javandroid.accounting_app.data.model.Order;
+import com.javandroid.accounting_app.data.model.OrderItemEntity;
 
-public class OrderAdapter extends ListAdapter<Order, OrderAdapter.OrderViewHolder> {
+public class OrderAdapter extends ListAdapter<OrderItemEntity, OrderAdapter.OrderViewHolder> {
 
-    public interface OnOrderAction {
-        void onClick(Order order);
+    public interface OnOrderItemAction {
+        void onClick(OrderItemEntity orderItem);
     }
 
     public interface OnQuantityChanged {
-        void onQuantityChanged(Order order, double newQuantity);
+        void onQuantityChanged(OrderItemEntity orderItem, double newQuantity);
     }
 
-    public interface OnOrderDeleted {
-        void onDelete1(Order order);
+    public interface OnOrderItemDeleted {
+        void onDelete(OrderItemEntity orderItem);
     }
 
-    private final OnOrderAction onIncrease;
-    private final OnOrderAction onDecrease;
+    private final OnOrderItemAction onIncrease;
+    private final OnOrderItemAction onDecrease;
     private final OnQuantityChanged onQuantityChanged;
-    private final OnOrderDeleted onOrderDeleted;
+    private final OnOrderItemDeleted onOrderItemDeleted;
 
     private boolean isBinding = false;
 
-    public OrderAdapter(OnOrderAction onIncrease,
-                        OnOrderAction onDecrease,
+    public OrderAdapter(OnOrderItemAction onIncrease,
+                        OnOrderItemAction onDecrease,
                         OnQuantityChanged onQuantityChanged,
-                        OnOrderDeleted onOrderDeleted) {
+                        OnOrderItemDeleted onOrderItemDeleted) {
         super(DIFF_CALLBACK);
         this.onIncrease = onIncrease;
         this.onDecrease = onDecrease;
         this.onQuantityChanged = onQuantityChanged;
-        this.onOrderDeleted = onOrderDeleted;
+        this.onOrderItemDeleted = onOrderItemDeleted;
     }
 
-    private static final DiffUtil.ItemCallback<Order> DIFF_CALLBACK = new DiffUtil.ItemCallback<Order>() {
+    private static final DiffUtil.ItemCallback<OrderItemEntity> DIFF_CALLBACK = new DiffUtil.ItemCallback<OrderItemEntity>() {
         @Override
-        public boolean areItemsTheSame(@NonNull Order oldItem, @NonNull Order newItem) {
-            return oldItem.getProductId() == newItem.getProductId();
+        public boolean areItemsTheSame(@NonNull OrderItemEntity oldItem, @NonNull OrderItemEntity newItem) {
+            return oldItem.getItemId() == newItem.getItemId();
         }
 
         @Override
-        public boolean areContentsTheSame(@NonNull Order oldItem, @NonNull Order newItem) {
-            return oldItem.equals(newItem);
+        public boolean areContentsTheSame(@NonNull OrderItemEntity oldItem, @NonNull OrderItemEntity newItem) {
+            return oldItem.getItemId() == newItem.getItemId() &&
+                    oldItem.getQuantity() == newItem.getQuantity() &&
+                    oldItem.getSellPrice() == newItem.getSellPrice() &&
+                    oldItem.getProductName().equals(newItem.getProductName());
         }
     };
 
@@ -86,10 +89,10 @@ public class OrderAdapter extends ListAdapter<Order, OrderAdapter.OrderViewHolde
 
     @Override
     public void onBindViewHolder(@NonNull OrderViewHolder holder, int position) {
-        Order order = getItem(position);
+        OrderItemEntity orderItem = getItem(position);
 
-        holder.nameView.setText(order.getProductName());
-        holder.priceView.setText(String.valueOf(order.getProductSellPrice()));
+        holder.nameView.setText(orderItem.getProductName());
+        holder.priceView.setText(String.valueOf(orderItem.getSellPrice()));
 
         // Remove old watcher
         if (holder.quantityView.getTag() instanceof TextWatcher) {
@@ -98,37 +101,37 @@ public class OrderAdapter extends ListAdapter<Order, OrderAdapter.OrderViewHolde
 
         // Bind quantity safely
         isBinding = true;
-        holder.quantityView.setText(String.valueOf(order.getQuantity()));
+        holder.quantityView.setText(String.valueOf(orderItem.getQuantity()));
         isBinding = false;
 
         // Change icon if quantity = 1
-        holder.btnDecrease.setText(order.getQuantity() <= 1 ? "🗑" : "−");
+        holder.btnDecrease.setText(orderItem.getQuantity() <= 1 ? "🗑" : "−");
 
         // Add TextWatcher for manual edits
-        TextWatcher watcher = createQuantityWatcher(order, holder.quantityView);
+        TextWatcher watcher = createQuantityWatcher(orderItem, holder.quantityView);
         holder.quantityView.setTag(watcher);
         holder.quantityView.addTextChangedListener(watcher);
 
         holder.btnIncrease.setOnClickListener(v -> {
-            double newQuantity = order.getQuantity() + 1;
-            order.setQuantity(newQuantity);
+            double newQuantity = orderItem.getQuantity() + 1;
+            orderItem.setQuantity(newQuantity);
             notifyItemChanged(holder.getBindingAdapterPosition());
-            onQuantityChanged.onQuantityChanged(order, newQuantity);
+            onQuantityChanged.onQuantityChanged(orderItem, newQuantity);
         });
 
         holder.btnDecrease.setOnClickListener(v -> {
-            if (order.getQuantity() <= 1) {
-                onOrderDeleted.onDelete1(order);
+            if (orderItem.getQuantity() <= 1) {
+                onOrderItemDeleted.onDelete(orderItem);
             } else {
-                double newQuantity = order.getQuantity() - 1;
-                order.setQuantity(newQuantity);
+                double newQuantity = orderItem.getQuantity() - 1;
+                orderItem.setQuantity(newQuantity);
                 notifyItemChanged(holder.getBindingAdapterPosition());
-                onQuantityChanged.onQuantityChanged(order, newQuantity);
+                onQuantityChanged.onQuantityChanged(orderItem, newQuantity);
             }
         });
     }
 
-    private TextWatcher createQuantityWatcher(Order order, EditText quantityView) {
+    private TextWatcher createQuantityWatcher(OrderItemEntity orderItem, EditText quantityView) {
         return new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -140,14 +143,15 @@ public class OrderAdapter extends ListAdapter<Order, OrderAdapter.OrderViewHolde
 
             @Override
             public void afterTextChanged(Editable s) {
-                if (isBinding) return;
+                if (isBinding)
+                    return;
 
                 String input = s.toString();
                 if (!input.isEmpty()) {
                     try {
-                        double quantity = Double.parseDouble(input);
-                        order.setQuantity(quantity);
-                        onQuantityChanged.onQuantityChanged(order, quantity);
+                        int quantity = Integer.parseInt(input);
+                        orderItem.setQuantity(quantity);
+                        onQuantityChanged.onQuantityChanged(orderItem, quantity);
                     } catch (NumberFormatException e) {
                         quantityView.setError("Invalid number");
                     }

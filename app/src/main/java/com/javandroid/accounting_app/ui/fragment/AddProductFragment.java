@@ -4,117 +4,137 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
+import androidx.navigation.Navigation;
 
+import com.google.android.material.textfield.TextInputEditText;
 import com.javandroid.accounting_app.R;
-import com.javandroid.accounting_app.data.model.Product;
-import com.javandroid.accounting_app.ui.adapter.ProductListAdapter;
+import com.javandroid.accounting_app.data.model.ProductEntity;
 import com.javandroid.accounting_app.ui.viewmodel.ProductViewModel;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class AddProductFragment extends Fragment {
 
     private ProductViewModel productViewModel;
-    private RecyclerView productRecyclerView;
-    private ProductListAdapter productListAdapter;
-    private EditText etProductName, etBarcode, etBuyPrice, etSellPrice, etDescription;
-    private Button btnAddProduct;
+    private TextInputEditText etBarcode;
+    private TextInputEditText etProductName;
+    private TextInputEditText etBuyPrice;
+    private TextInputEditText etSellPrice;
+    private TextInputEditText etStock;
 
-    public AddProductFragment() {
-        // Required empty public constructor
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        productViewModel = new ViewModelProvider(requireActivity()).get(ProductViewModel.class);
+    }
+
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
+            @Nullable Bundle savedInstanceState) {
+        return inflater.inflate(R.layout.fragment_add_product, container, false);
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        View rootView = inflater.inflate(R.layout.fragment_add_product, container, false);
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
 
-        // Initialize the ProductViewModel
-        productViewModel = new ViewModelProvider(this).get(ProductViewModel.class);
-
-        // Set up the RecyclerView and Adapter
-        productRecyclerView = rootView.findViewById(R.id.recyclerViewProductList);
-        productRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-
-        // Initialize the Adapter with onItemClickListener
-        productListAdapter = new ProductListAdapter(new ArrayList<>(), product -> {
-            // Handle adding product to order (you might need to navigate to OrderFragment here)
-            // For example, use ViewModel to add the product to the order
-            productViewModel.addProductToOrder(product);
-        });
-        productRecyclerView.setAdapter(productListAdapter);
-
-        // Observe LiveData for product list updates
-        productViewModel.getAllProducts().observe(getViewLifecycleOwner(), this::updateProductList);
-
-        // Set up the EditText views and Button for adding a new product
-        etProductName = rootView.findViewById(R.id.etProductName);
-        etBarcode = rootView.findViewById(R.id.etBarcode);
-        if (getArguments() != null) {
-            String scannedBarcode = getArguments().getString("scanned_barcode", "");
-            if (!scannedBarcode.isEmpty()) {
-                etBarcode.setText(scannedBarcode);
-                etBarcode.setEnabled(false); // optional: prevent editing
-            }
-        }
-        etBuyPrice = rootView.findViewById(R.id.etBuyPrice);
-        etSellPrice = rootView.findViewById(R.id.etSellPrice);
-        etDescription = rootView.findViewById(R.id.etDescription);
-        btnAddProduct = rootView.findViewById(R.id.btnAddProduct);
-
-        // Handle adding a new product
-        btnAddProduct.setOnClickListener(v -> {
-            String productName = etProductName.getText().toString().trim();
-            String barcode = etBarcode.getText().toString().trim();
-            String buyPriceStr = etBuyPrice.getText().toString().trim();
-            String sellPriceStr = etSellPrice.getText().toString().trim();
-            String description = etDescription.getText().toString().trim();
-
-            if (productName.isEmpty() || barcode.isEmpty() || buyPriceStr.isEmpty() || sellPriceStr.isEmpty()) {
-                Toast.makeText(getContext(), "Please fill all required fields.", Toast.LENGTH_SHORT).show();
-            } else {
-                double buyPrice = Double.parseDouble(buyPriceStr);
-                double sellPrice = Double.parseDouble(sellPriceStr);
-
-                // Create a new Product object
-                Product newProduct = new Product();
-                newProduct.setName(productName);
-                newProduct.setBarcode(barcode);
-                newProduct.setBuyPrice(buyPrice);
-                newProduct.setSellPrice(sellPrice);
-                newProduct.setDescription(description);
-
-                // Add the new product to the database
-                productViewModel.insertProduct(newProduct);
-
-                // Optionally clear the input fields after adding
-                etProductName.setText("");
-                etBarcode.setText("");
-                etBuyPrice.setText("");
-                etSellPrice.setText("");
-                etDescription.setText("");
-
-                // Show a success message
-                Toast.makeText(getContext(), "Product added successfully!", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        return rootView;
+        initViews(view);
+        setupListeners(view);
+        handleArguments();
     }
 
-    // Method to update the RecyclerView with the latest product list
-    private void updateProductList(List<Product> products) {
-        if (products != null) {
-            productListAdapter.updateProductList(products);
+    private void initViews(View view) {
+        etBarcode = view.findViewById(R.id.etBarcode);
+        etProductName = view.findViewById(R.id.etProductName);
+        etBuyPrice = view.findViewById(R.id.etBuyPrice);
+        etSellPrice = view.findViewById(R.id.etSellPrice);
+        etStock = view.findViewById(R.id.etStock);
+    }
+
+    private void setupListeners(View view) {
+        view.findViewById(R.id.btnAddProduct).setOnClickListener(v -> saveProduct());
+    }
+
+    private void handleArguments() {
+        Bundle args = getArguments();
+        if (args != null && args.containsKey("barcode")) {
+            String barcode = args.getString("barcode");
+            etBarcode.setText(barcode);
         }
+    }
+
+    private void saveProduct() {
+        String barcode = etBarcode.getText().toString().trim();
+        String name = etProductName.getText().toString().trim();
+        String buyPriceStr = etBuyPrice.getText().toString().trim();
+        String sellPriceStr = etSellPrice.getText().toString().trim();
+        String stockStr = etStock.getText().toString().trim();
+
+        if (validateInput(barcode, name, buyPriceStr, sellPriceStr, stockStr)) {
+            ProductEntity product = new ProductEntity(name, barcode);
+            product.setBuyPrice(Double.parseDouble(buyPriceStr));
+            product.setSellPrice(Double.parseDouble(sellPriceStr));
+            product.setStock(Integer.parseInt(stockStr));
+
+            productViewModel.insert(product);
+            Toast.makeText(requireContext(), "Product added successfully", Toast.LENGTH_SHORT).show();
+            Navigation.findNavController(requireView()).navigateUp();
+        }
+    }
+
+    private boolean validateInput(String barcode, String name, String buyPrice, String sellPrice, String stock) {
+        if (barcode.isEmpty()) {
+            showError("Please enter a barcode");
+            return false;
+        }
+        if (name.isEmpty()) {
+            showError("Please enter a product name");
+            return false;
+        }
+        if (buyPrice.isEmpty()) {
+            showError("Please enter a buy price");
+            return false;
+        }
+        if (sellPrice.isEmpty()) {
+            showError("Please enter a sell price");
+            return false;
+        }
+        if (stock.isEmpty()) {
+            showError("Please enter stock quantity");
+            return false;
+        }
+
+        try {
+            double buy = Double.parseDouble(buyPrice);
+            double sell = Double.parseDouble(sellPrice);
+            int quantity = Integer.parseInt(stock);
+
+            if (buy < 0) {
+                showError("Buy price cannot be negative");
+                return false;
+            }
+            if (sell < 0) {
+                showError("Sell price cannot be negative");
+                return false;
+            }
+            if (quantity < 0) {
+                showError("Stock quantity cannot be negative");
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            showError("Please enter valid numbers");
+            return false;
+        }
+
+        return true;
+    }
+
+    private void showError(String message) {
+        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
     }
 }

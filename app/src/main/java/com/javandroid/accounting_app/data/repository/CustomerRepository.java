@@ -1,43 +1,59 @@
 package com.javandroid.accounting_app.data.repository;
 
-import android.app.Application;
+import android.content.Context;
 
 import androidx.lifecycle.LiveData;
 
-import com.javandroid.accounting_app.data.dao.CustomerDao;
 import com.javandroid.accounting_app.data.database.AppDatabase;
-import com.javandroid.accounting_app.data.model.Customer;
+import com.javandroid.accounting_app.data.dao.CustomerDao;
+import com.javandroid.accounting_app.data.model.CustomerEntity;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class CustomerRepository {
-
     private final CustomerDao customerDao;
-    private final LiveData<List<Customer>> allCustomers;
-    private final ExecutorService executorService;
+    private final ExecutorService executor;
 
-    public CustomerRepository(Application application) {
-        AppDatabase db = AppDatabase.getInstance(application);
+    public CustomerRepository(Context context) {
+        AppDatabase db = AppDatabase.getInstance(context);
         customerDao = db.customerDao();
-        allCustomers = customerDao.getAllCustomers();
-        executorService = Executors.newSingleThreadExecutor();
+        executor = Executors.newSingleThreadExecutor();
     }
 
-    public LiveData<List<Customer>> getAllCustomers() {
-        return allCustomers;
+    public LiveData<List<CustomerEntity>> getAllCustomers() {
+        return customerDao.getAllCustomers();
     }
 
-    public void insert(Customer customer) {
-        executorService.execute(() -> customerDao.insert(customer));
+    public void insert(CustomerEntity customer) {
+        executor.execute(() -> customerDao.insert(customer));
     }
 
-    public void update(Customer customer) {
-        executorService.execute(() -> customerDao.update(customer));
+    public void update(CustomerEntity customer) {
+        executor.execute(() -> customerDao.update(customer));
     }
 
-    public void delete(Customer customer) {
-        executorService.execute(() -> customerDao.delete(customer));
+    public void delete(CustomerEntity customer) {
+        executor.execute(() -> customerDao.delete(customer));
+    }
+
+    public void deleteAll() {
+        executor.execute(() -> customerDao.deleteAll());
+    }
+
+    public void getCustomerByIdSync(long customerId, OnCustomerResultCallback callback) {
+        executor.execute(() -> {
+            CustomerEntity customer = customerDao.getCustomerByIdSync(customerId);
+            callback.onResult(customer);
+        });
+    }
+
+    public LiveData<CustomerEntity> getCustomerById(long customerId) {
+        return customerDao.getCustomerById(customerId);
+    }
+
+    public interface OnCustomerResultCallback {
+        void onResult(CustomerEntity customer);
     }
 }

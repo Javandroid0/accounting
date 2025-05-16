@@ -1,47 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="8dp">
+    android:orientation="horizontal"
+    android:padding="8dp"
+    android:gravity="center_vertical">
 
     <TextView
         android:id="@+id/tv_product_name"
-        android:layout_width="80dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="4"
-        android:text="Product" />
+        android:text="Product"
+        android:textSize="16sp" />
 
-    <!--    <EditText-->
-    <!--        android:id="@+id/et_quantity"-->
-    <!--        android:layout_width="70dp"-->
-    <!--        android:layout_height="wrap_content"-->
-    <!--        android:autofillHints=""-->
-    <!--        android:hint="Qty"-->
-    <!--        android:inputType="numberDecimal" />-->
+    <EditText
+        android:id="@+id/et_quantity"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.5"
+        android:hint="Quantity"
+        android:inputType="numberDecimal" />
 
     <EditText
         android:id="@+id/et_price"
-        android:layout_width="70dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="4"
+        android:layout_weight="2"
         android:hint="Sell Price"
         android:inputType="numberDecimal" />
 
     <EditText
         android:id="@+id/et_buy_price"
-        android:layout_width="70dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="4"
+        android:layout_weight="2"
         android:hint="Buy"
         android:inputType="numberDecimal" />
 
-
-    <Button
-        android:id="@+id/btn_delete_product"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_weight="4"
-        android:text="Delete" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginStart="8dp">
+
+        <Button
+            android:id="@+id/btn_delete_product"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:padding="8dp"
+            android:text="Delete" />
+    </LinearLayout>
 </LinearLayout>

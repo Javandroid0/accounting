@@ -3,8 +3,7 @@ package com.javandroid.accounting_app.data.dao;
 import androidx.lifecycle.LiveData;
 import androidx.room.*;
 
-import com.javandroid.accounting_app.data.model.Order;
-import com.javandroid.accounting_app.data.model.Product;
+import com.javandroid.accounting_app.data.model.ProductEntity;
 
 import java.util.List;
 
@@ -12,25 +11,31 @@ import java.util.List;
 public interface ProductDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insert(Product product); // Create
+    void insert(ProductEntity product); // Create
 
-    @Query("SELECT * FROM products")
-    LiveData<List<Product>> getAllProducts(); // Read (Live updates)
+    @Query("SELECT * FROM products ORDER BY productId ASC")
+    LiveData<List<ProductEntity>> getAllProducts(); // Read (Live updates)
+
+    @Query("SELECT * FROM products WHERE productId = :productId LIMIT 1")
+    LiveData<ProductEntity> getProductById(long productId);
+
+    @Query("SELECT * FROM products WHERE productId = :productId LIMIT 1")
+    ProductEntity getProductByIdSync(long productId);
 
     @Query("SELECT * FROM products WHERE barcode = :barcode LIMIT 1")
-    Product getProductByBarcodeSync(String barcode); // Read one
+    ProductEntity getProductByBarcodeSync(String barcode); // Read one
 
     @Query("SELECT * FROM products WHERE barcode = :barcode LIMIT 1")
-    LiveData<Product> getProductByBarcode(String barcode);
+    LiveData<ProductEntity> getProductByBarcode(String barcode);
 
     @Update
-    void update(Product product); // Update
+    void update(ProductEntity product); // Update
 
     @Update
-    void updateAll(List<Product> products);
+    void updateAll(List<ProductEntity> products);
 
     @Delete
-    void delete(Product product); // Delete
+    void delete(ProductEntity product); // Delete
 
     @Query("DELETE FROM products")
     void deleteAll(); // Optional: Delete all

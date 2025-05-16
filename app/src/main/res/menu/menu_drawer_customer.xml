@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_all_customers"
+            android:icon="@android:drawable/ic_menu_search"
+            android:title="All Customers" />
+        <item
+            android:id="@+id/nav_add_customer"
+            android:icon="@android:drawable/ic_menu_add"
+            android:title="Add New Customer" />
+    </group>
+    <item android:title="Customer Management">
+        <menu>
+            <item
+                android:id="@+id/nav_delete_customer"
+                android:icon="@android:drawable/ic_menu_delete"
+                android:title="Delete Customer" />
+            <item
+                android:id="@+id/nav_edit_customer"
+                android:icon="@android:drawable/ic_menu_edit"
+                android:title="Edit Customer" />
+        </menu>
+    </item>
+</menu> 

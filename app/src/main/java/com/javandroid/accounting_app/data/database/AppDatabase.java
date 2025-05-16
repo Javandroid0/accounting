@@ -12,12 +12,19 @@ import com.javandroid.accounting_app.data.dao.CustomerDao;
 import com.javandroid.accounting_app.data.dao.OrderDao;
 import com.javandroid.accounting_app.data.dao.ProductDao;
 import com.javandroid.accounting_app.data.dao.UserDao;
-import com.javandroid.accounting_app.data.model.Customer;
-import com.javandroid.accounting_app.data.model.Order;
-import com.javandroid.accounting_app.data.model.Product;
-import com.javandroid.accounting_app.data.model.User;
+import com.javandroid.accounting_app.data.model.CustomerEntity;
+import com.javandroid.accounting_app.data.model.OrderEntity;
+import com.javandroid.accounting_app.data.model.OrderItemEntity;
+import com.javandroid.accounting_app.data.model.ProductEntity;
+import com.javandroid.accounting_app.data.model.UserEntity;
 
-@Database(entities = {Product.class, Order.class, User.class, Customer.class}, version = 3, exportSchema = false)
+@Database(entities = {
+        ProductEntity.class,
+        OrderEntity.class,
+        OrderItemEntity.class,
+        UserEntity.class,
+        CustomerEntity.class
+}, version = 4, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
 
     private static volatile AppDatabase instance;
@@ -34,36 +41,67 @@ public abstract class AppDatabase extends RoomDatabase {
         if (instance == null) {
             synchronized (AppDatabase.class) {
                 if (instance == null) {
-//                    instance = Room.databaseBuilder(
-//                            context.getApplicationContext(),
-//                            AppDatabase.class,
-//                            "shop-db"
-//                    ).fallbackToDestructiveMigration().build();
                     instance = Room.databaseBuilder(
-                                    context.getApplicationContext(),
-                                    AppDatabase.class,
-                                    "shop-db"
-                            ).addMigrations(MIGRATION_2_3) // attach the migration here
+                            context.getApplicationContext(),
+                            AppDatabase.class,
+                            "shop-db")
+                            .addMigrations(MIGRATION_3_4)
                             .build();
-
                 }
             }
         }
         return instance;
     }
 
-    public static final Migration MIGRATION_2_3 = new Migration(2, 3) {
+    public static final Migration MIGRATION_3_4 = new Migration(3, 4) {
         @Override
         public void migrate(SupportSQLiteDatabase database) {
-            // Add new column to Product
-            database.execSQL("ALTER TABLE Product ADD COLUMN description TEXT");
+            // Create new tables with the new schema
+            database.execSQL("CREATE TABLE IF NOT EXISTS products_new (" +
+                    "productId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "name TEXT NOT NULL, " +
+                    "barcode TEXT NOT NULL, " +
+                    "buyPrice REAL NOT NULL DEFAULT 0, " +
+                    "sellPrice REAL NOT NULL DEFAULT 0, " +
+                    "stock INTEGER NOT NULL DEFAULT 0)");
 
-            // Create customers table
-            database.execSQL("CREATE TABLE IF NOT EXISTS customers (" +
+            // Copy data from old table
+            database.execSQL("INSERT INTO products_new (productId, name, barcode, buyPrice, sellPrice) " +
+                    "SELECT id, name, barcode, buyPrice, sellPrice FROM products");
+
+            // Drop old table
+            database.execSQL("DROP TABLE products");
+
+            // Rename new table to original name
+            database.execSQL("ALTER TABLE products_new RENAME TO products");
+
+            // Create orders table
+            database.execSQL("CREATE TABLE IF NOT EXISTS orders (" +
                     "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
-                    "name TEXT NOT NULL)");
+                    "date INTEGER NOT NULL, " +
+                    "total REAL NOT NULL DEFAULT 0, " +
+                    "customerId INTEGER NOT NULL, " +
+                    "userId INTEGER NOT NULL, " +
+                    "FOREIGN KEY (customerId) REFERENCES customers(customerId) ON DELETE CASCADE, " +
+                    "FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE)");
+
+            // Create order_items table
+            database.execSQL("CREATE TABLE IF NOT EXISTS order_items (" +
+                    "itemId INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                    "orderId INTEGER, " +
+                    "productId INTEGER, " +
+                    "productName TEXT NOT NULL, " +
+                    "barcode TEXT NOT NULL, " +
+                    "buyPrice REAL NOT NULL DEFAULT 0, " +
+                    "sellPrice REAL NOT NULL DEFAULT 0, " +
+                    "quantity INTEGER NOT NULL DEFAULT 0, " +
+                    "FOREIGN KEY (orderId) REFERENCES orders(id) ON DELETE CASCADE, " +
+                    "FOREIGN KEY (productId) REFERENCES products(productId) ON DELETE SET NULL)");
+
+            // Create indices for better query performance
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_order_items_orderId ON order_items(orderId)");
+            database.execSQL("CREATE INDEX IF NOT EXISTS index_order_items_productId ON order_items(productId)");
         }
     };
-
 
 }

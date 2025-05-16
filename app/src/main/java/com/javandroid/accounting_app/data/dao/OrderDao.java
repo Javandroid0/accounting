@@ -3,7 +3,8 @@ package com.javandroid.accounting_app.data.dao;
 import androidx.lifecycle.LiveData;
 import androidx.room.*;
 
-import com.javandroid.accounting_app.data.model.Order;
+import com.javandroid.accounting_app.data.model.OrderEntity;
+import com.javandroid.accounting_app.data.model.OrderItemEntity;
 
 import java.util.List;
 
@@ -11,24 +12,38 @@ import java.util.List;
 public interface OrderDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insert(Order order); // Create
+    long insertOrder(OrderEntity order);
 
-    @Query("SELECT * FROM orders")
-    LiveData<List<Order>> getAllOrders(); // Read all
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    void insertOrderItem(OrderItemEntity orderItem);
+
+    @Query("SELECT * FROM orders ORDER BY orderId ASC")
+    LiveData<List<OrderEntity>> getAllOrders();
+
+    @Query("SELECT * FROM orders WHERE customerId = :customerId")
+    LiveData<List<OrderEntity>> getOrdersByCustomerId(long customerId);
 
     @Query("SELECT * FROM orders WHERE userId = :userId")
-    LiveData<List<Order>> getOrdersByUserId(String userId); // Filtered Read
+    LiveData<List<OrderEntity>> getOrdersByUserId(long userId);
 
+    @Query("SELECT * FROM order_items WHERE orderId = :orderId")
+    LiveData<List<OrderItemEntity>> getOrderItems(long orderId);
 
     @Update
-    void update(Order order); // Update
+    void updateOrder(OrderEntity order);
+
+    @Update
+    void updateOrderItem(OrderItemEntity orderItem);
 
     @Delete
-    void delete(Order order); // Delete
+    void deleteOrder(OrderEntity order);
 
     @Delete
-    void deleteOrder(Order order);
+    void deleteOrderItem(OrderItemEntity orderItem);
 
     @Query("DELETE FROM orders")
-    void deleteAll(); // Optional
+    void deleteAllOrders();
+
+    @Query("DELETE FROM order_items")
+    void deleteAllOrderItems();
 }

@@ -1,108 +1,191 @@
 package com.javandroid.accounting_app;
 
 import android.os.Bundle;
-import android.view.Menu;
 import android.view.MenuItem;
+import android.view.Menu;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
-import androidx.navigation.fragment.NavHostFragment;
+import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.navigation.NavigationView;
-import com.javandroid.accounting_app.data.model.Customer;
+import com.javandroid.accounting_app.data.model.CustomerEntity;
+import com.javandroid.accounting_app.data.model.UserEntity;
+import com.javandroid.accounting_app.ui.adapter.CustomerDrawerAdapter;
+import com.javandroid.accounting_app.ui.adapter.UserDrawerAdapter;
 import com.javandroid.accounting_app.ui.viewmodel.CustomerViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.UserViewModel;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity
+        implements NavigationView.OnNavigationItemSelectedListener,
+        CustomerDrawerAdapter.OnCustomerClickListener,
+        UserDrawerAdapter.OnUserClickListener {
 
-    private NavController navController;
     private DrawerLayout drawerLayout;
-    private NavigationView navigationView;
+    private NavigationView navViewLeft;
+    private NavigationView navViewRight;
+    private UserViewModel userViewModel;
+    private CustomerViewModel customerViewModel;
+    private CustomerDrawerAdapter customerAdapter;
+    private UserDrawerAdapter userAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Initialize ViewModels
+        userViewModel = new ViewModelProvider(this).get(UserViewModel.class);
+        customerViewModel = new ViewModelProvider(this).get(CustomerViewModel.class);
+
+        // Setup Toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
+        // Setup DrawerLayout and NavigationView
         drawerLayout = findViewById(R.id.drawer_layout);
-        navigationView = findViewById(R.id.navigation_view);
+        navViewLeft = findViewById(R.id.nav_view_left);
+        navViewRight = findViewById(R.id.nav_view_right);
 
-        // Setup drawer toggle icon
+        // Setup ActionBarDrawerToggle for left drawer (Customer drawer)
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawerLayout, toolbar,
-                R.string.navigation_drawer_open,
-                R.string.navigation_drawer_close);
+                R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
 
-        // Setup Navigation Component
-        NavHostFragment navHostFragment =
-                (NavHostFragment) getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment);
+        // Set navigation item click listeners
+        navViewLeft.setNavigationItemSelectedListener(this);
+        navViewRight.setNavigationItemSelectedListener(this);
 
-        if (navHostFragment != null) {
-            navController = navHostFragment.getNavController();
-            NavigationUI.setupActionBarWithNavController(this, navController, drawerLayout);
-        }
+        // Add customer RecyclerView to the left drawer
+        setupCustomerDrawer();
 
-        // Drawer item click handling
-        navigationView.setNavigationItemSelectedListener(item -> {
-            int id = item.getItemId();
+        // Add user RecyclerView to the right drawer
+        setupUserDrawer();
 
-            if (id == R.id.nav_customer1) {
-                Toast.makeText(this, "Customer 1 selected", Toast.LENGTH_SHORT).show();
-                // Open order for Customer 1
-            } else if (id == R.id.nav_customer2) {
-                Toast.makeText(this, "Customer 2 selected", Toast.LENGTH_SHORT).show();
+        // Configure NavController with Toolbar
+        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
+        NavigationUI.setupWithNavController(toolbar, navController);
+    }
+
+    private void setupCustomerDrawer() {
+        // Create header view for the drawer
+        RecyclerView recyclerView = new RecyclerView(this);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        customerAdapter = new CustomerDrawerAdapter(this);
+        recyclerView.setAdapter(customerAdapter);
+
+        // Add the RecyclerView to the drawer header
+        navViewLeft.addHeaderView(recyclerView);
+
+        // Observe customer list from ViewModel
+        customerViewModel.getAllCustomers().observe(this, customers -> {
+            if (customers != null) {
+                customerAdapter.setCustomers(customers);
             }
-
-            drawerLayout.closeDrawer(GravityCompat.START);
-            return true;
         });
+    }
 
+    private void setupUserDrawer() {
+        // Create header view for the drawer
+        RecyclerView recyclerView = new RecyclerView(this);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        userAdapter = new UserDrawerAdapter(this);
+        recyclerView.setAdapter(userAdapter);
 
-        CustomerViewModel customerViewModel = new ViewModelProvider(this).get(CustomerViewModel.class);
+        // Add the RecyclerView to the drawer header
+        navViewRight.addHeaderView(recyclerView);
 
-        navigationView.setNavigationItemSelectedListener(item -> {
-            if (item.getItemId() == R.id.nav_customer1) {
-                customerViewModel.getCustomers().observe(this, customers -> {
-                    if (customers != null && customers.size() > 0) {
-                        Customer customer = customers.get(0);
-                        customerViewModel.selectCustomer(customer);
-                        Toast.makeText(this, "Selected: " + customer.name, Toast.LENGTH_SHORT).show();
-                    }
-                });
-            } else if (item.getItemId() == R.id.nav_customer2) {
-                customerViewModel.getCustomers().observe(this, customers -> {
-                    if (customers != null && customers.size() > 1) {
-                        Customer customer = customers.get(1);
-                        customerViewModel.selectCustomer(customer);
-                        Toast.makeText(this, "Selected: " + customer.name, Toast.LENGTH_SHORT).show();
-                    }
-                });
+        // Observe user list from ViewModel
+        userViewModel.getAllUsers().observe(this, users -> {
+            if (users != null) {
+                userAdapter.setUsers(users);
             }
-
-            drawerLayout.closeDrawer(GravityCompat.START);
-            return true;
         });
-
     }
 
     @Override
-    public boolean onSupportNavigateUp() {
-        return navController != null && navController.navigateUp() || super.onSupportNavigateUp();
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
+
+        // Handle Customer drawer menu items
+        if (id == R.id.nav_all_customers) {
+            // Show customer list (already shown in drawer)
+        } else if (id == R.id.nav_add_customer) {
+            // Navigate to add customer screen
+            Navigation.findNavController(this, R.id.nav_host_fragment)
+                    .navigate(R.id.action_global_addCustomerFragment);
+        } else if (id == R.id.nav_delete_customer) {
+            Toast.makeText(this, "Select a customer to delete", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.nav_edit_customer) {
+            Toast.makeText(this, "Select a customer to edit", Toast.LENGTH_SHORT).show();
+        }
+        // Handle User drawer menu items
+        else if (id == R.id.nav_all_users) {
+            // Show user list (already shown in drawer)
+        } else if (id == R.id.nav_add_user) {
+            // Navigate to add user screen
+            Navigation.findNavController(this, R.id.nav_host_fragment)
+                    .navigate(R.id.action_global_addUserFragment);
+        } else if (id == R.id.nav_delete_user) {
+            Toast.makeText(this, "Select a user to delete", Toast.LENGTH_SHORT).show();
+        } else if (id == R.id.nav_edit_user) {
+            Toast.makeText(this, "Select a user to edit", Toast.LENGTH_SHORT).show();
+        }
+
+        // Close the drawer
+        drawerLayout.closeDrawer(GravityCompat.START);
+        return true;
     }
 
-    // Inflate the menu
+    // Handle customer selection from drawer
+    @Override
+    public void onCustomerClick(CustomerEntity customer) {
+        // Set selected customer in ViewModel to be used in orders
+        customerViewModel.setSelectedCustomer(customer);
+        Toast.makeText(this, "Selected customer: " + customer.getName(), Toast.LENGTH_SHORT).show();
+        drawerLayout.closeDrawer(GravityCompat.START);
+    }
+
+    // Handle user selection from drawer
+    @Override
+    public void onUserClick(UserEntity user) {
+        // Set selected user in ViewModel to be used in orders
+        userViewModel.setCurrentUser(user);
+        Toast.makeText(this, "Selected user: " + user.getUsername(), Toast.LENGTH_SHORT).show();
+        drawerLayout.closeDrawer(GravityCompat.END);
+    }
+
+    // Open right drawer when user clicks on user info button in toolbar
+    public void openUserDrawer() {
+        if (drawerLayout.isDrawerOpen(GravityCompat.END)) {
+            drawerLayout.closeDrawer(GravityCompat.END);
+        } else {
+            drawerLayout.openDrawer(GravityCompat.END);
+        }
+    }
+
+    // Open left drawer when user clicks on customer info button in toolbar
+    public void openCustomerDrawer() {
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        } else {
+            drawerLayout.openDrawer(GravityCompat.START);
+        }
+    }
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_main, menu);
@@ -111,18 +194,28 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment);
+        int id = item.getItemId();
 
-        if (item.getItemId() == R.id.action_open_order_editor) {
-            navController.navigate(R.id.menuFragment);
+        // Handle toolbar menu items
+        if (id == R.id.action_user_info) {
+            openUserDrawer();
             return true;
-        } else if (item.getItemId() == R.id.action_open_product_editor) {
-            navController.navigate(R.id.menuFragment1);
+        } else if (id == R.id.action_customer_info) {
+            openCustomerDrawer();
             return true;
-        } else {
-            return super.onOptionsItemSelected(item);
         }
+
+        return super.onOptionsItemSelected(item);
     }
 
-
+    @Override
+    public void onBackPressed() {
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        } else if (drawerLayout.isDrawerOpen(GravityCompat.END)) {
+            drawerLayout.closeDrawer(GravityCompat.END);
+        } else {
+            super.onBackPressed();
+        }
+    }
 }

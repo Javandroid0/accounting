@@ -8,43 +8,53 @@
 
     <TextView
         android:id="@+id/tv_product_name"
-        android:layout_width="152dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="4"
         android:text="Product Name"
-        android:textSize="24sp" />
+        android:textSize="16sp" />
 
     <TextView
         android:id="@+id/tv_product_price"
-        android:layout_width="152dp"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_weight="4"
-        android:gravity="center"
-        android:text=" "
-        android:textSize="20sp" />
-
-
-    <Button
-        android:id="@+id/btn_decrease"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="−" />
-
-    <EditText
-        android:id="@+id/quantityView"
-        android:layout_width="48dp"
-        android:layout_height="wrap_content"
-        android:inputType="numberDecimal"
-        android:text="1"
-        android:gravity="center"
-
+        android:layout_weight="2"
+        android:gravity="end"
+        android:text="$0.00"
         android:textSize="16sp" />
-    <!--    android:focusable="true"-->
-    <!--        android:focusableInTouchMode="true"   -->
 
-    <Button
-        android:id="@+id/btn_increase"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="+" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginStart="8dp">
+
+        <Button
+            android:id="@+id/btn_decrease"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:padding="0dp"
+            android:text="−" />
+
+        <EditText
+            android:id="@+id/quantityView"
+            android:layout_width="48dp"
+            android:layout_height="wrap_content"
+            android:inputType="numberDecimal"
+            android:text="1"
+            android:gravity="center"
+            android:textSize="16sp" />
+
+        <Button
+            android:id="@+id/btn_increase"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:minWidth="0dp"
+            android:minHeight="0dp"
+            android:padding="0dp"
+            android:text="+" />
+    </LinearLayout>
 </LinearLayout>
