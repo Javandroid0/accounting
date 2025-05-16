@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class ProductEditorFragment extends Fragment {
@@ -44,7 +45,7 @@ public class ProductEditorFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-            @Nullable Bundle savedInstanceState) {
+                             @Nullable Bundle savedInstanceState) {
         csvFilePickerLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
@@ -130,16 +131,18 @@ public class ProductEditorFragment extends Fragment {
     private List<ProductEntity> loadProductsFromUri(Context context, Uri uri) {
         List<ProductEntity> productList = new ArrayList<>();
         try (InputStream inputStream = context.getContentResolver().openInputStream(uri);
-                BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+            reader.readLine();
             String line;
             while ((line = reader.readLine()) != null) {
                 String[] tokens = line.split(",");
-                if (tokens.length >= 4) {
-                    String barcode = tokens[0].trim();
+//                System.out.println(Arrays.toString(tokens));
+                if (tokens.length >= 5) {
+                    String barcode = tokens[2].trim();
                     String name = tokens[1].trim();
-                    double sellPrice = Double.parseDouble(tokens[2].trim());
+                    double sellPrice = Double.parseDouble(tokens[4].trim());
                     double buyPrice = Double.parseDouble(tokens[3].trim());
-                    int stock = tokens.length > 4 ? Integer.parseInt(tokens[4].trim()) : 0;
+                    int stock = tokens.length > 4 ? Integer.parseInt(tokens[5].trim()) : 0;
 
                     ProductEntity product = productViewModel.createProduct(name, barcode, buyPrice, sellPrice, stock);
                     productList.add(product);

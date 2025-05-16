@@ -32,7 +32,7 @@ public class ProductListAdapter extends RecyclerView.Adapter<ProductListAdapter.
     public void onBindViewHolder(ProductViewHolder holder, int position) {
         ProductEntity product = productList.get(position);
         holder.productName.setText(product.getName());
-        holder.productPrice.setText(String.format("Price: $%.2f", product.getSellPrice()));
+        holder.productPrice.setText(String.format("Price: %.2f", product.getSellPrice()));
         holder.itemView.setOnClickListener(v -> onItemClickListener.onProductClick(product));
     }
 

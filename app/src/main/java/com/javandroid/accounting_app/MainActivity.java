@@ -26,6 +26,7 @@ import com.javandroid.accounting_app.ui.adapter.CustomerDrawerAdapter;
 import com.javandroid.accounting_app.ui.adapter.UserDrawerAdapter;
 import com.javandroid.accounting_app.ui.viewmodel.CustomerViewModel;
 import com.javandroid.accounting_app.ui.viewmodel.UserViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.OrderViewModel;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener,
@@ -37,6 +38,7 @@ public class MainActivity extends AppCompatActivity
     private NavigationView navViewRight;
     private UserViewModel userViewModel;
     private CustomerViewModel customerViewModel;
+    private OrderViewModel orderViewModel;
     private CustomerDrawerAdapter customerAdapter;
     private UserDrawerAdapter userAdapter;
 
@@ -48,6 +50,7 @@ public class MainActivity extends AppCompatActivity
         // Initialize ViewModels
         userViewModel = new ViewModelProvider(this).get(UserViewModel.class);
         customerViewModel = new ViewModelProvider(this).get(CustomerViewModel.class);
+        orderViewModel = new ViewModelProvider(this).get(OrderViewModel.class);
 
         // Setup Toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -155,6 +158,12 @@ public class MainActivity extends AppCompatActivity
     public void onCustomerClick(CustomerEntity customer) {
         // Set selected customer in ViewModel to be used in orders
         customerViewModel.setSelectedCustomer(customer);
+
+        // Also update the order's customer ID and clear items
+        if (customer != null) {
+            orderViewModel.setCustomerId(customer.getCustomerId());
+        }
+
         Toast.makeText(this, "Selected customer: " + customer.getName(), Toast.LENGTH_SHORT).show();
         drawerLayout.closeDrawer(GravityCompat.START);
     }
@@ -218,8 +227,18 @@ public class MainActivity extends AppCompatActivity
         // Show a toast message
         Toast.makeText(this, "Starting manual backup...", Toast.LENGTH_SHORT).show();
 
-        // Run the backup operation immediately
-        com.javandroid.accounting_app.data.backup.BackupScheduler.runBackupNow(this);
+        // Run the backup operation immediately with a callback
+        com.javandroid.accounting_app.data.backup.BackupScheduler.runBackupNow(
+                this,
+                false,
+                success -> {
+                    // Report result to user
+                    String message = success ? "Backup completed successfully" : "Backup failed. Please check logs.";
+
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show();
+                    });
+                });
     }
 
     @Override

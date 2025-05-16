@@ -17,8 +17,10 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -30,6 +32,10 @@ public class OrderViewModel extends AndroidViewModel {
     private final MutableLiveData<ProductEntity> lastScannedProduct = new MutableLiveData<>();
     private long currentUserId;
     private static final String TAG = "OrderViewModel";
+
+    // Store in-progress orders and items for each customer
+    private final Map<Long, OrderEntity> customerOrders = new HashMap<>();
+    private final Map<Long, List<OrderItemEntity>> customerOrderItems = new HashMap<>();
 
     // Event to signal when order is empty/deleted
     private final MutableLiveData<Boolean> orderEmptyEvent = new MutableLiveData<>();
@@ -271,6 +277,9 @@ public class OrderViewModel extends AndroidViewModel {
         List<OrderItemEntity> items = currentOrderItems.getValue();
 
         if (order != null && items != null && !items.isEmpty()) {
+            // Get current customer ID to clear state later
+            final long customerId = order.getCustomerId();
+
             orderRepository.insertOrderAndGetId(order, orderId -> {
                 // Update order ID in items and insert them
                 for (OrderItemEntity item : items) {
@@ -280,10 +289,15 @@ public class OrderViewModel extends AndroidViewModel {
 
                 // Clear current order
                 currentOrder.postValue(new OrderEntity(
-                        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date()), 0.0, 0L,
+                        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date()), 0.0,
+                        customerId,
                         currentUserId));
                 // Reset to empty list, not null
                 currentOrderItems.postValue(new ArrayList<>());
+
+                // Clear this customer's saved order state since it's now confirmed
+                customerOrders.remove(customerId);
+                customerOrderItems.remove(customerId);
             });
         }
     }
@@ -298,6 +312,9 @@ public class OrderViewModel extends AndroidViewModel {
         List<OrderItemEntity> items = currentOrderItems.getValue();
 
         if (order != null && items != null && !items.isEmpty()) {
+            // Get current customer ID to clear state later
+            final long customerId = order.getCustomerId();
+
             orderRepository.insertOrderAndGetId(order, orderId -> {
                 Log.d(TAG, "Order confirmed with ID: " + orderId);
 
@@ -318,10 +335,15 @@ public class OrderViewModel extends AndroidViewModel {
 
                 // After the callback is done, create a new order
                 currentOrder.postValue(new OrderEntity(
-                        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date()), 0.0, 0L,
+                        new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date()), 0.0,
+                        customerId,
                         currentUserId));
                 // Reset to empty list, not null
                 currentOrderItems.postValue(new ArrayList<>());
+
+                // Clear this customer's saved order state since it's now confirmed
+                customerOrders.remove(customerId);
+                customerOrderItems.remove(customerId);
             });
         } else {
             // If there's no valid order, just run the callback
@@ -391,6 +413,107 @@ public class OrderViewModel extends AndroidViewModel {
         OrderEntity order = currentOrder.getValue();
         if (order != null) {
             order.setUserId(userId);
+            currentOrder.setValue(order);
+        }
+    }
+
+    /**
+     * Set the customer ID for the current order and switch to that customer's order
+     * list
+     */
+    public void setCustomerId(long customerId) {
+        OrderEntity order = currentOrder.getValue();
+        if (order != null) {
+            // Save current order state for the previous customer
+            if (order.getCustomerId() > 0) {
+                saveCurrentOrderStateForCustomer(order.getCustomerId());
+            }
+
+            // Set new customer ID
+            order.setCustomerId(customerId);
+
+            // If we already have an order for this customer, load it
+            if (customerOrders.containsKey(customerId)) {
+                OrderEntity savedOrder = customerOrders.get(customerId);
+                // Update with saved data but keep the same order instance to avoid
+                // breaking references in the UI
+                order.setTotal(savedOrder.getTotal());
+
+                // Load this customer's items
+                List<OrderItemEntity> savedItems = customerOrderItems.get(customerId);
+                if (savedItems != null) {
+                    currentOrderItems.setValue(new ArrayList<>(savedItems));
+                } else {
+                    currentOrderItems.setValue(new ArrayList<>());
+                }
+            } else {
+                // First time seeing this customer, start with empty order
+                order.setTotal(0.0);
+                currentOrderItems.setValue(new ArrayList<>());
+            }
+
+            currentOrder.setValue(order);
+        }
+    }
+
+    /**
+     * Save the current order state for a customer
+     */
+    private void saveCurrentOrderStateForCustomer(long customerId) {
+        OrderEntity currentOrderValue = currentOrder.getValue();
+        List<OrderItemEntity> currentItemsValue = currentOrderItems.getValue();
+
+        if (currentOrderValue != null) {
+            customerOrders.put(customerId, cloneOrder(currentOrderValue));
+        }
+
+        if (currentItemsValue != null) {
+            List<OrderItemEntity> itemsCopy = new ArrayList<>();
+            for (OrderItemEntity item : currentItemsValue) {
+                // Create a deep copy of each item
+                OrderItemEntity copy = new OrderItemEntity(item.getItemId(), item.getBarcode());
+                copy.setOrderId(item.getOrderId());
+                copy.setProductId(item.getProductId());
+                copy.setProductName(item.getProductName());
+                copy.setBuyPrice(item.getBuyPrice());
+                copy.setSellPrice(item.getSellPrice());
+                copy.setQuantity(item.getQuantity());
+                itemsCopy.add(copy);
+            }
+            customerOrderItems.put(customerId, itemsCopy);
+        }
+    }
+
+    /**
+     * Create a copy of an order
+     */
+    private OrderEntity cloneOrder(OrderEntity order) {
+        OrderEntity clone = new OrderEntity(
+                order.getDate(),
+                order.getTotal(),
+                order.getCustomerId(),
+                order.getUserId());
+        clone.setOrderId(order.getOrderId());
+        return clone;
+    }
+
+    /**
+     * Recalculates the total for the current order based on all order items
+     */
+    public void updateOrderTotal() {
+        OrderEntity order = currentOrder.getValue();
+        List<OrderItemEntity> items = currentOrderItems.getValue();
+
+        if (order != null && items != null) {
+            double total = 0.0;
+
+            // Sum up the price of all items (quantity * sellPrice)
+            for (OrderItemEntity item : items) {
+                total += item.getQuantity() * item.getSellPrice();
+            }
+
+            // Update the order total
+            order.setTotal(total);
             currentOrder.setValue(order);
         }
     }

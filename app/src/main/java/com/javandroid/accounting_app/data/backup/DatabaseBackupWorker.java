@@ -1,7 +1,6 @@
 package com.javandroid.accounting_app.data.backup;
 
 import android.content.Context;
-import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
 
@@ -15,10 +14,6 @@ import com.javandroid.accounting_app.data.model.OrderItemEntity;
 import com.javandroid.accounting_app.data.model.ProductEntity;
 import com.javandroid.accounting_app.data.model.CustomerEntity;
 import com.javandroid.accounting_app.data.model.UserEntity;
-import com.javandroid.accounting_app.data.repository.OrderRepository;
-import com.javandroid.accounting_app.data.repository.ProductRepository;
-import com.javandroid.accounting_app.data.repository.CustomerRepository;
-import com.javandroid.accounting_app.data.repository.UserRepository;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -27,11 +22,9 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 /**
- * Worker class that handles the daily database backup
+ * Worker class that handles the database backup
  * It exports all data from the database to CSV files in the backups folder
  */
 public class DatabaseBackupWorker extends Worker {
@@ -39,49 +32,75 @@ public class DatabaseBackupWorker extends Worker {
     private static final String BACKUP_FOLDER_NAME = "accounting_app_backups";
 
     private AppDatabase database;
-    private OrderRepository orderRepository;
-    private ProductRepository productRepository;
-    private CustomerRepository customerRepository;
-    private UserRepository userRepository;
+    private File todayBackupDir;
 
     public DatabaseBackupWorker(@NonNull Context context, @NonNull WorkerParameters params) {
         super(context, params);
         database = AppDatabase.getInstance(context);
-        orderRepository = new OrderRepository(context);
-        productRepository = new ProductRepository(context);
-        customerRepository = new CustomerRepository(context);
-        userRepository = new UserRepository(context);
     }
 
     @NonNull
     @Override
     public Result doWork() {
         try {
-            Log.d(TAG, "Starting daily database backup");
+            Log.d(TAG, "Starting database backup");
 
             // Create the backup directory
             File backupDir = createBackupDirectory();
             if (backupDir == null) {
                 Log.e(TAG, "Failed to create backup directory");
+                BackupMetadata.recordFailedBackup(getApplicationContext());
                 return Result.failure();
             }
 
             // Create timestamped folder for today's backup
             String timestamp = new SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(new Date());
-            File todayBackupDir = new File(backupDir, timestamp);
+            todayBackupDir = new File(backupDir, timestamp);
             if (!todayBackupDir.exists() && !todayBackupDir.mkdirs()) {
                 Log.e(TAG, "Failed to create today's backup directory");
+                BackupMetadata.recordFailedBackup(getApplicationContext());
                 return Result.failure();
             }
 
             // Export each data type
             boolean success = true;
-            success &= exportOrders(todayBackupDir);
-            success &= exportProducts(todayBackupDir);
-            success &= exportCustomers(todayBackupDir);
-            success &= exportUsers(todayBackupDir);
+
+            try {
+                success &= exportOrders(todayBackupDir);
+            } catch (Exception e) {
+                Log.e(TAG, "Error exporting orders", e);
+                success = false;
+            }
+
+            try {
+                success &= exportProducts(todayBackupDir);
+            } catch (Exception e) {
+                Log.e(TAG, "Error exporting products", e);
+                success = false;
+            }
+
+            try {
+                success &= exportCustomers(todayBackupDir);
+            } catch (Exception e) {
+                Log.e(TAG, "Error exporting customers", e);
+                success = false;
+            }
+
+            try {
+                success &= exportUsers(todayBackupDir);
+            } catch (Exception e) {
+                Log.e(TAG, "Error exporting users", e);
+                success = false;
+            }
 
             Log.d(TAG, "Database backup " + (success ? "completed successfully" : "completed with errors"));
+
+            // Record backup metadata
+            if (success) {
+                BackupMetadata.recordSuccessfulBackup(getApplicationContext(), todayBackupDir.getAbsolutePath());
+            } else {
+                BackupMetadata.recordFailedBackup(getApplicationContext());
+            }
 
             // Clean up old backups (keep only last 7 days)
             cleanupOldBackups(backupDir, 7);
@@ -89,6 +108,7 @@ public class DatabaseBackupWorker extends Worker {
             return success ? Result.success() : Result.failure();
         } catch (Exception e) {
             Log.e(TAG, "Error during backup", e);
+            BackupMetadata.recordFailedBackup(getApplicationContext());
             return Result.failure();
         }
     }
@@ -111,25 +131,10 @@ public class DatabaseBackupWorker extends Worker {
             File ordersFile = new File(backupDir, "orders.csv");
             File orderItemsFile = new File(backupDir, "order_items.csv");
 
-            // Get all orders
-            CountDownLatch latch = new CountDownLatch(1);
-            final List<OrderEntity>[] orders = new List[1];
+            // Get all orders directly from the database
+            List<OrderEntity> orders = database.orderDao().getAllOrdersSync();
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                getApplicationContext().getMainExecutor().execute(() -> {
-                    orderRepository.getAllOrders().observeForever(orderList -> {
-                        orders[0] = orderList;
-                        latch.countDown();
-                    });
-                });
-            }
-
-            if (!latch.await(30, TimeUnit.SECONDS)) {
-                Log.e(TAG, "Timeout waiting for orders data");
-                return false;
-            }
-
-            if (orders[0] == null || orders[0].isEmpty()) {
+            if (orders == null || orders.isEmpty()) {
                 Log.d(TAG, "No orders to export");
                 return true;
             }
@@ -138,7 +143,7 @@ public class DatabaseBackupWorker extends Worker {
             try (FileWriter writer = new FileWriter(ordersFile)) {
                 writer.append("Order ID,Date,Customer ID,User ID,Total\n");
 
-                for (OrderEntity order : orders[0]) {
+                for (OrderEntity order : orders) {
                     writer.append(String.valueOf(order.getOrderId())).append(",");
                     writer.append(escapeCsvField(order.getDate())).append(",");
                     writer.append(String.valueOf(order.getCustomerId())).append(",");
@@ -152,29 +157,14 @@ public class DatabaseBackupWorker extends Worker {
             try (FileWriter writer = new FileWriter(orderItemsFile)) {
                 writer.append("Item ID,Order ID,Product ID,Product Name,Barcode,Quantity,Buy Price,Sell Price\n");
 
-                for (OrderEntity order : orders[0]) {
-                    final List<OrderItemEntity>[] items = new List[1];
-                    CountDownLatch itemLatch = new CountDownLatch(1);
+                for (OrderEntity order : orders) {
+                    List<OrderItemEntity> items = database.orderDao().getItemsForOrderSync(order.getOrderId());
 
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        getApplicationContext().getMainExecutor().execute(() -> {
-                            orderRepository.getOrderItems(order.getOrderId()).observeForever(itemList -> {
-                                items[0] = itemList;
-                                itemLatch.countDown();
-                            });
-                        });
-                    }
-
-                    if (!itemLatch.await(5, TimeUnit.SECONDS)) {
-                        Log.e(TAG, "Timeout waiting for order items for order " + order.getOrderId());
+                    if (items == null || items.isEmpty()) {
                         continue;
                     }
 
-                    if (items[0] == null || items[0].isEmpty()) {
-                        continue;
-                    }
-
-                    for (OrderItemEntity item : items[0]) {
+                    for (OrderItemEntity item : items) {
                         writer.append(String.valueOf(item.getItemId())).append(",");
                         writer.append(String.valueOf(item.getOrderId())).append(",");
                         writer.append(item.getProductId() != null ? String.valueOf(item.getProductId()) : "")
@@ -189,6 +179,7 @@ public class DatabaseBackupWorker extends Worker {
                 writer.flush();
             }
 
+            Log.d(TAG, "Successfully exported " + orders.size() + " orders");
             return true;
         } catch (Exception e) {
             Log.e(TAG, "Error exporting orders", e);
@@ -200,25 +191,10 @@ public class DatabaseBackupWorker extends Worker {
         try {
             File productsFile = new File(backupDir, "products.csv");
 
-            // Get all products
-            CountDownLatch latch = new CountDownLatch(1);
-            final List<ProductEntity>[] products = new List[1];
+            // Get all products directly from the database
+            List<ProductEntity> products = database.productDao().getAllProductsSync();
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                getApplicationContext().getMainExecutor().execute(() -> {
-                    productRepository.getAllProducts().observeForever(productList -> {
-                        products[0] = productList;
-                        latch.countDown();
-                    });
-                });
-            }
-
-            if (!latch.await(30, TimeUnit.SECONDS)) {
-                Log.e(TAG, "Timeout waiting for products data");
-                return false;
-            }
-
-            if (products[0] == null || products[0].isEmpty()) {
+            if (products == null || products.isEmpty()) {
                 Log.d(TAG, "No products to export");
                 return true;
             }
@@ -227,7 +203,7 @@ public class DatabaseBackupWorker extends Worker {
             try (FileWriter writer = new FileWriter(productsFile)) {
                 writer.append("Product ID,Name,Barcode,Buy Price,Sell Price,Stock\n");
 
-                for (ProductEntity product : products[0]) {
+                for (ProductEntity product : products) {
                     writer.append(String.valueOf(product.getProductId())).append(",");
                     writer.append(escapeCsvField(product.getName())).append(",");
                     writer.append(escapeCsvField(product.getBarcode())).append(",");
@@ -238,6 +214,7 @@ public class DatabaseBackupWorker extends Worker {
                 writer.flush();
             }
 
+            Log.d(TAG, "Successfully exported " + products.size() + " products");
             return true;
         } catch (Exception e) {
             Log.e(TAG, "Error exporting products", e);
@@ -249,25 +226,10 @@ public class DatabaseBackupWorker extends Worker {
         try {
             File customersFile = new File(backupDir, "customers.csv");
 
-            // Get all customers
-            CountDownLatch latch = new CountDownLatch(1);
-            final List<CustomerEntity>[] customers = new List[1];
+            // Get all customers directly from the database
+            List<CustomerEntity> customers = database.customerDao().getAllCustomersSync();
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                getApplicationContext().getMainExecutor().execute(() -> {
-                    customerRepository.getAllCustomers().observeForever(customerList -> {
-                        customers[0] = customerList;
-                        latch.countDown();
-                    });
-                });
-            }
-
-            if (!latch.await(30, TimeUnit.SECONDS)) {
-                Log.e(TAG, "Timeout waiting for customers data");
-                return false;
-            }
-
-            if (customers[0] == null || customers[0].isEmpty()) {
+            if (customers == null || customers.isEmpty()) {
                 Log.d(TAG, "No customers to export");
                 return true;
             }
@@ -276,13 +238,14 @@ public class DatabaseBackupWorker extends Worker {
             try (FileWriter writer = new FileWriter(customersFile)) {
                 writer.append("Customer ID,Name\n");
 
-                for (CustomerEntity customer : customers[0]) {
+                for (CustomerEntity customer : customers) {
                     writer.append(String.valueOf(customer.getCustomerId())).append(",");
                     writer.append(escapeCsvField(customer.getName())).append("\n");
                 }
                 writer.flush();
             }
 
+            Log.d(TAG, "Successfully exported " + customers.size() + " customers");
             return true;
         } catch (Exception e) {
             Log.e(TAG, "Error exporting customers", e);
@@ -294,25 +257,10 @@ public class DatabaseBackupWorker extends Worker {
         try {
             File usersFile = new File(backupDir, "users.csv");
 
-            // Get all users
-            CountDownLatch latch = new CountDownLatch(1);
-            final List<UserEntity>[] users = new List[1];
+            // Get all users directly from the database
+            List<UserEntity> users = database.userDao().getAllUsersSync();
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                getApplicationContext().getMainExecutor().execute(() -> {
-                    userRepository.getAllUsers().observeForever(userList -> {
-                        users[0] = userList;
-                        latch.countDown();
-                    });
-                });
-            }
-
-            if (!latch.await(30, TimeUnit.SECONDS)) {
-                Log.e(TAG, "Timeout waiting for users data");
-                return false;
-            }
-
-            if (users[0] == null || users[0].isEmpty()) {
+            if (users == null || users.isEmpty()) {
                 Log.d(TAG, "No users to export");
                 return true;
             }
@@ -321,7 +269,7 @@ public class DatabaseBackupWorker extends Worker {
             try (FileWriter writer = new FileWriter(usersFile)) {
                 writer.append("User ID,Username,Password\n");
 
-                for (UserEntity user : users[0]) {
+                for (UserEntity user : users) {
                     writer.append(String.valueOf(user.getUserId())).append(",");
                     writer.append(escapeCsvField(user.getUsername())).append(",");
                     writer.append(escapeCsvField(user.getPassword())).append("\n");
@@ -329,6 +277,7 @@ public class DatabaseBackupWorker extends Worker {
                 writer.flush();
             }
 
+            Log.d(TAG, "Successfully exported " + users.size() + " users");
             return true;
         } catch (Exception e) {
             Log.e(TAG, "Error exporting users", e);
@@ -345,10 +294,16 @@ public class DatabaseBackupWorker extends Worker {
         // Get current time minus keepDays
         long cutoffTime = System.currentTimeMillis() - (keepDays * 24 * 60 * 60 * 1000L);
 
+        int deletedCount = 0;
         for (File folder : backupFolders) {
             if (folder.isDirectory() && folder.lastModified() < cutoffTime) {
                 deleteRecursive(folder);
+                deletedCount++;
             }
+        }
+
+        if (deletedCount > 0) {
+            Log.d(TAG, "Cleaned up " + deletedCount + " old backup(s)");
         }
     }
 

@@ -17,6 +17,9 @@ public interface CustomerDao {
     @Query("SELECT * FROM customers ORDER BY customerId ASC")
     LiveData<List<CustomerEntity>> getAllCustomers();
 
+    @Query("SELECT * FROM customers ORDER BY customerId ASC")
+    List<CustomerEntity> getAllCustomersSync();
+
     @Query("SELECT * FROM customers WHERE customerId = :customerId LIMIT 1")
     CustomerEntity getCustomerByIdSync(long customerId);
 

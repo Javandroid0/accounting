@@ -13,6 +13,9 @@ public interface UserDao {
     @Query("SELECT * FROM users ORDER BY userId ASC")
     LiveData<List<UserEntity>> getAllUsers();
 
+    @Query("SELECT * FROM users ORDER BY userId ASC")
+    List<UserEntity> getAllUsersSync();
+
     @Query("SELECT * FROM users WHERE userId = :userId LIMIT 1")
     UserEntity getUserByIdSync(long userId);
 

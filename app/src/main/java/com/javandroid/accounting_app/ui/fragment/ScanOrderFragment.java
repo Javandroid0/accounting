@@ -155,6 +155,9 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
 
     private void initViews(View view) {
         barcodeInput = view.findViewById(R.id.editTextBarcode);
+
+        // Initially disable barcode input until customer and user are selected
+        updateBarcodeInputState();
     }
 
     private void setupRecyclerView(View view) {
@@ -168,6 +171,9 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
         MaterialButton btnAddManual = view.findViewById(R.id.btnAddManual);
         MaterialButton btnConfirmOrder = view.findViewById(R.id.btnConfirmOrder);
         MaterialButton btnPrintOrder = view.findViewById(R.id.btnPrintOrder);
+
+        // Initially disable the Add Manual button
+        btnAddManual.setEnabled(false);
 
         btnAddManual.setOnClickListener(v -> {
             IntentIntegrator integrator = new IntentIntegrator(requireActivity());
@@ -215,12 +221,17 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
                 orderViewModel.setCurrentUserId(user.getUserId());
                 updateUserDisplay(user);
             }
+            // Check if we can enable the barcode input
+            updateBarcodeInputState();
         });
 
         // Observe selected customer
         customerViewModel.getSelectedCustomer().observe(getViewLifecycleOwner(), customer -> {
             selectedCustomer = customer;
             updateCustomerDisplay(customer);
+
+            // Check if we can enable the barcode input
+            updateBarcodeInputState();
         });
 
         // Observe current order items
@@ -740,6 +751,26 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
             }
         } else {
             super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
+    }
+
+    /**
+     * Update the barcode input field state based on customer and user selection
+     */
+    private void updateBarcodeInputState() {
+        boolean enabled = (selectedCustomer != null && currentUser != null);
+        barcodeInput.setEnabled(enabled);
+
+        // Also update the Add Manual button state
+        MaterialButton btnAddManual = getView() != null ? getView().findViewById(R.id.btnAddManual) : null;
+        if (btnAddManual != null) {
+            btnAddManual.setEnabled(enabled);
+        }
+
+        if (!enabled) {
+            barcodeInput.setHint("Select customer and user first");
+        } else {
+            barcodeInput.setHint("Scan barcode");
         }
     }
 }

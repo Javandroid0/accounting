@@ -70,7 +70,21 @@
     <fragment
         android:id="@+id/customerListFragment"
         android:name="com.javandroid.accounting_app.ui.fragment.CustomerListFragment"
-        android:label="Customer List" />
+        android:label="Customer List">
+        <action
+            android:id="@+id/action_customerListFragment_to_customerDetailFragment"
+            app:destination="@id/customerDetailFragment" />
+    </fragment>
+        
+    <fragment
+        android:id="@+id/customerDetailFragment"
+        android:name="com.javandroid.accounting_app.ui.fragment.CustomerDetailFragment"
+        android:label="Customer Details"
+        tools:layout="@layout/fragment_customer_detail">
+        <action
+            android:id="@+id/action_customerDetailFragment_to_orderEditorFragment"
+            app:destination="@id/orderEditorFragment" />
+    </fragment>
         
     <fragment
         android:id="@+id/addCustomerFragment"

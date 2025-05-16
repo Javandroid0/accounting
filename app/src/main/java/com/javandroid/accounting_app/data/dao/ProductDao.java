@@ -16,6 +16,9 @@ public interface ProductDao {
     @Query("SELECT * FROM products ORDER BY productId ASC")
     LiveData<List<ProductEntity>> getAllProducts(); // Read (Live updates)
 
+    @Query("SELECT * FROM products ORDER BY productId ASC")
+    List<ProductEntity> getAllProductsSync(); // Synchronous read for backup
+
     @Query("SELECT * FROM products WHERE productId = :productId LIMIT 1")
     LiveData<ProductEntity> getProductById(long productId);
 

@@ -20,6 +20,9 @@ public interface OrderDao {
     @Query("SELECT * FROM orders ORDER BY orderId ASC")
     LiveData<List<OrderEntity>> getAllOrders();
 
+    @Query("SELECT * FROM orders ORDER BY orderId ASC")
+    List<OrderEntity> getAllOrdersSync();
+
     @Query("SELECT * FROM orders WHERE customerId = :customerId")
     LiveData<List<OrderEntity>> getOrdersByCustomerId(long customerId);
 
@@ -28,6 +31,9 @@ public interface OrderDao {
 
     @Query("SELECT * FROM order_items WHERE orderId = :orderId")
     LiveData<List<OrderItemEntity>> getOrderItems(long orderId);
+
+    @Query("SELECT * FROM order_items WHERE orderId = :orderId")
+    List<OrderItemEntity> getItemsForOrderSync(long orderId);
 
     @Query("SELECT * FROM orders WHERE orderId = :orderId LIMIT 1")
     LiveData<OrderEntity> getOrderById(long orderId);
