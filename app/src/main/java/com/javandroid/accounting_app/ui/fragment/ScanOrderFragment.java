@@ -108,7 +108,7 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
 
                 if (allGranted) {
                     // All permissions granted, proceed with printing
-                    doPrintOrder();
+                    doPrintOrder(false);
                 } else {
                     // Some permissions were denied
                     Toast.makeText(requireContext(),
@@ -134,6 +134,16 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
         setupRecyclerView(view);
         setupListeners(view);
         observeViewModels();
+
+        // Set focus to barcode input after creation
+        refocusBarcodeInput();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Always set focus to barcode input when resuming
+        refocusBarcodeInput();
     }
 
     private void initViewModels() {
@@ -156,7 +166,6 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
 
     private void setupListeners(View view) {
         MaterialButton btnAddManual = view.findViewById(R.id.btnAddManual);
-        // MaterialButton btnSelectCustomer = view.findViewById(R.id.btnSelectCustomer);
         MaterialButton btnConfirmOrder = view.findViewById(R.id.btnConfirmOrder);
         MaterialButton btnPrintOrder = view.findViewById(R.id.btnPrintOrder);
 
@@ -170,16 +179,14 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
             barcodeLauncher.launch(integrator.createScanIntent());
         });
 
-        // btnSelectCustomer.setOnClickListener(v -> {
-        // // Use MainActivity to open the drawer instead of navigating
-        // if (getActivity() instanceof MainActivity) {
-        // ((MainActivity) getActivity()).openCustomerDrawer();
-        // }
-        // });
-
         btnConfirmOrder.setOnClickListener(v -> confirmOrder());
-
         btnPrintOrder.setOnClickListener(v -> printOrder());
+
+        // Update the confirm button with the current total
+        OrderEntity initialOrder = orderViewModel.getCurrentOrder().getValue();
+        if (initialOrder != null) {
+            updateConfirmButtonText(btnConfirmOrder, initialOrder.getTotal());
+        }
 
         barcodeInput.setOnEditorActionListener((v, actionId, event) -> {
             handleBarcodeInput();
@@ -219,7 +226,10 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
         // Observe current order items
         orderViewModel.getCurrentOrderItems().observe(getViewLifecycleOwner(), items -> {
             if (items != null) {
-                adapter.submitList(new ArrayList<>(items));
+                // Create a new list to force adapter update
+                List<OrderItemEntity> itemsList = new ArrayList<>(items);
+                adapter.submitList(null); // First clear the list
+                adapter.submitList(itemsList); // Then set the new list
                 updateTotalDisplay();
             }
         });
@@ -245,6 +255,9 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
             // Store the barcode in a final variable to use it in the lambda
             final String finalBarcode = barcode;
 
+            // Clear input field immediately to prevent double-processing
+            barcodeInput.setText("");
+
             // Use executor to run database query on background thread
             executor.execute(() -> {
                 try {
@@ -262,10 +275,6 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
                                 // Product found, add to order
                                 orderViewModel.addProduct(product, quantityToAdd);
 
-                                // Reduce stock quantity by the amount added
-                                product.setStock(product.getStock() - quantityToAdd);
-                                productViewModel.updateProduct(product);
-
                                 Toast.makeText(requireContext(),
                                         "Product added: " + product.getName(),
                                         Toast.LENGTH_SHORT).show();
@@ -281,8 +290,7 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
                                     Toast.LENGTH_SHORT).show();
                             openAddProductFragment(finalBarcode);
                         }
-                        // Clear input field
-                        barcodeInput.setText("");
+                        // Input field was already cleared
                     });
                 } catch (Exception e) {
                     // Handle any errors
@@ -290,7 +298,6 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
                         Toast.makeText(requireContext(),
                                 "Error: " + e.getMessage(),
                                 Toast.LENGTH_SHORT).show();
-                        barcodeInput.setText("");
                     });
                 }
             });
@@ -321,12 +328,27 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
         if (getView() != null) {
             OrderEntity currentOrder = orderViewModel.getCurrentOrder().getValue();
             if (currentOrder != null) {
-                String totalText = String.format("Total: $%.2f", currentOrder.getTotal());
-                TextView totalView = getView().findViewById(R.id.textTotal);
-                if (totalView != null) {
-                    totalView.setText(totalText);
-                }
+                // Update both the total display and the confirm button
+                // String totalText = String.format("Total: $%.2f", currentOrder.getTotal());
+                // TextView totalView = getView().findViewById(R.id.textTotal);
+                // if (totalView != null) {
+                // totalView.setText(totalText);
+                // }
+
+                // Also update the confirm button text
+                MaterialButton btnConfirmOrder = getView().findViewById(R.id.btnConfirmOrder);
+                updateConfirmButtonText(btnConfirmOrder, currentOrder.getTotal());
             }
+        }
+    }
+
+    /**
+     * Updates the confirm button text to include the total amount
+     */
+    private void updateConfirmButtonText(MaterialButton button, double total) {
+        if (button != null) {
+            // Format total as integer if it's a whole number
+            button.setText(String.format("تایید %.3f", total));
         }
     }
 
@@ -351,13 +373,56 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
         if (currentOrder != null) {
             currentOrder.setCustomerId(selectedCustomer.getCustomerId());
             currentOrder.setUserId(currentUser.getUserId());
+
+            // Confirm order but stay on this screen
             orderViewModel.confirmOrder();
             Toast.makeText(requireContext(), "Order confirmed successfully", Toast.LENGTH_SHORT).show();
-            Navigation.findNavController(requireView()).navigateUp();
+
+            // Focus on barcode input to start a new order immediately
+            refocusBarcodeInput();
+
+            // Remove the navigation up that was causing us to leave the page
+            // Navigation.findNavController(requireView()).navigateUp();
         }
     }
 
-    private void checkBluetoothPermissionsAndPrint() {
+    private void printOrder() {
+        // First, check if the order is confirmed (has ID)
+        OrderEntity currentOrder = orderViewModel.getCurrentOrder().getValue();
+        if (currentOrder != null && currentOrder.getOrderId() == 0) {
+            // Order is not confirmed yet, confirm it first and then print
+            if (currentUser == null) {
+                Toast.makeText(requireContext(), "Please select a user first", Toast.LENGTH_SHORT).show();
+                if (getActivity() instanceof MainActivity) {
+                    ((MainActivity) getActivity()).openUserDrawer();
+                }
+                return;
+            }
+
+            if (selectedCustomer == null) {
+                Toast.makeText(requireContext(), "Please select a customer first", Toast.LENGTH_SHORT).show();
+                if (getActivity() instanceof MainActivity) {
+                    ((MainActivity) getActivity()).openCustomerDrawer();
+                }
+                return;
+            }
+
+            // Set customer and user IDs
+            currentOrder.setCustomerId(selectedCustomer.getCustomerId());
+            currentOrder.setUserId(currentUser.getUserId());
+
+            // Confirm order and then print
+            orderViewModel.confirmOrderAndThen(() -> {
+                // This callback runs after order is confirmed and will print the order
+                checkBluetoothPermissionsAndPrint(false);
+            });
+        } else {
+            // Order already has an ID, simply print it
+            checkBluetoothPermissionsAndPrint(false);
+        }
+    }
+
+    private void checkBluetoothPermissionsAndPrint(boolean isPreview) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // For Android 12+ (API 31+)
             boolean allPermissionsGranted = true;
@@ -370,7 +435,7 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
             }
 
             if (allPermissionsGranted) {
-                doPrintOrder();
+                doPrintOrder(isPreview);
             } else {
                 requestBluetoothPermissionLauncher.launch(BLUETOOTH_PERMISSIONS);
             }
@@ -392,43 +457,22 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
                         },
                         PERMISSION_REQUEST_BLUETOOTH);
             } else {
-                doPrintOrder();
+                doPrintOrder(isPreview);
             }
         }
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        if (requestCode == PERMISSION_REQUEST_BLUETOOTH) {
-            boolean allGranted = true;
-            for (int result : grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    allGranted = false;
-                    break;
-                }
-            }
-
-            if (allGranted) {
-                doPrintOrder();
-            } else {
-                Toast.makeText(requireContext(),
-                        "Bluetooth permissions are required for printing",
-                        Toast.LENGTH_LONG).show();
-            }
-        } else {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        }
-    }
-
-    private void doPrintOrder() {
+    private void doPrintOrder(boolean isPreview) {
+        // Check prerequisites on main thread
         if (currentUser == null) {
-            Toast.makeText(requireContext(), "Please log in first", Toast.LENGTH_SHORT).show();
+            mainHandler.post(() -> Toast.makeText(requireContext(),
+                    "Please select a user first", Toast.LENGTH_SHORT).show());
             return;
         }
 
         if (selectedCustomer == null) {
-            Toast.makeText(requireContext(), "Please select a customer", Toast.LENGTH_SHORT).show();
+            mainHandler.post(() -> Toast.makeText(requireContext(),
+                    "Please select a customer", Toast.LENGTH_SHORT).show());
             return;
         }
 
@@ -436,7 +480,8 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
         List<OrderItemEntity> items = orderViewModel.getCurrentOrderItems().getValue();
 
         if (currentOrder == null || items == null || items.isEmpty()) {
-            Toast.makeText(requireContext(), "No items to print", Toast.LENGTH_SHORT).show();
+            mainHandler.post(() -> Toast.makeText(requireContext(),
+                    "No items to print", Toast.LENGTH_SHORT).show());
             return;
         }
 
@@ -463,12 +508,15 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
                 receiptText.append("[C]<b>RECEIPT</b>\n");
                 receiptText.append("[R]").append(dateTime).append("\n");
                 receiptText.append("[L]Cust: ").append(selectedCustomer.getName()).append("\n");
-                receiptText.append("[L]Ord#: ").append(currentOrder.orderId).append("\n");
+
+                // Always show the order ID - will be 0 if it's a draft
+                receiptText.append("[L]Order :").append(currentOrder.orderId).append("\n");
+
                 receiptText.append("[C]--------------------\n");
 
                 // Column headers
-                receiptText.append("[L]ITEM[R]QTY PRICE TOTAL");
-                receiptText.append("[C]--------------------\n");
+                receiptText.append("[L]ITEM[R]QTY PRICE TOTAL\n");
+                receiptText.append("[C]----------------\n");
 
                 // Items section - each on a single line
                 for (OrderItemEntity item : items) {
@@ -480,9 +528,13 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
                         productName = productName.substring(0, 10) + "..";
                     }
 
-                    // Format item line with aligned values
+                    // Format item line with aligned values - check if quantity is whole number
+                    String quantityFormat = (item.getQuantity() == Math.floor(item.getQuantity()))
+                            ? "%.0f $%.2f $%.2f\n"
+                            : "%.1f $%.2f $%.2f\n";
+
                     receiptText.append("[L]").append(productName)
-                            .append("[R]").append(String.format("%.1f $%.1f $%.1f\n",
+                            .append("[R]").append(String.format(quantityFormat,
                                     item.getQuantity(),
                                     item.getSellPrice(),
                                     total));
@@ -507,10 +559,6 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
                         Toast.LENGTH_LONG).show());
             }
         });
-    }
-
-    private void printOrder() {
-        checkBluetoothPermissionsAndPrint();
     }
 
     @Override
@@ -611,10 +659,6 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
                                 // Product found, add to order
                                 orderViewModel.addProduct(product, 1);
 
-                                // Reduce stock quantity
-                                product.setStock(product.getStock() - 1);
-                                productViewModel.updateProduct(product);
-
                                 Toast.makeText(requireContext(),
                                         "Product added: " + product.getName(),
                                         Toast.LENGTH_SHORT).show();
@@ -644,10 +688,28 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
     }
 
     private void openAddProductFragment(String barcode) {
-        Bundle args = new Bundle();
-        args.putString("barcode", barcode);
-        Navigation.findNavController(requireView()).navigate(
-                R.id.action_scanOrderFragment_to_addProductFragment, args);
+        try {
+            // Get the current destination ID
+            NavController navController = Navigation.findNavController(requireView());
+            int currentDestinationId = navController.getCurrentDestination().getId();
+
+            // Only navigate if we're on the ScanOrderFragment
+            if (currentDestinationId == R.id.scanOrderFragment) {
+                Bundle args = new Bundle();
+                args.putString("barcode", barcode);
+                navController.navigate(R.id.action_scanOrderFragment_to_addProductFragment, args);
+            } else {
+                // We're already on another screen, just show a toast
+                Toast.makeText(requireContext(),
+                        "Cannot navigate to add product from current screen",
+                        Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            // Handle any navigation errors gracefully
+            Toast.makeText(requireContext(),
+                    "Navigation error: " + e.getMessage(),
+                    Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void refocusBarcodeInput() {
@@ -655,5 +717,29 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
             binding.editTextBarcode.requestFocus();
             binding.editTextBarcode.setSelection(binding.editTextBarcode.getText().length());
         }, 150);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if (requestCode == PERMISSION_REQUEST_BLUETOOTH) {
+            boolean allGranted = true;
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    allGranted = false;
+                    break;
+                }
+            }
+
+            if (allGranted) {
+                doPrintOrder(false); // Default to non-preview mode
+            } else {
+                Toast.makeText(requireContext(),
+                        "Bluetooth permissions are required for printing",
+                        Toast.LENGTH_LONG).show();
+            }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
     }
 }

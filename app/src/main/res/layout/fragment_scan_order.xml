@@ -31,8 +31,10 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Customer"
-                    android:textAppearance="?attr/textAppearanceCaption" />
+                    android:text="مشتری"
+                    android:textAppearance="?attr/textAppearanceCaption"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/textViewCustomerName"
@@ -59,17 +61,13 @@
                 android:padding="8dp">
 
                 <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="User"
-                    android:textAppearance="?attr/textAppearanceCaption" />
-
-                <TextView
                     android:id="@+id/textViewUserName"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="No user selected"
-                    android:textAppearance="?attr/textAppearanceBody1" />
+                    android:text="فروشنده"
+                    android:textAlignment="center"
+                    android:textAppearance="?attr/textAppearanceBody1"
+                    android:textStyle="bold" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
@@ -92,7 +90,7 @@
                 android:id="@+id/editTextBarcode"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Enter barcode"
+                android:hint="بارکد را وارد کنید"
                 android:inputType="text" />
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -100,7 +98,7 @@
             android:id="@+id/btnAddManual"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Scan"
+            android:text="دوربین"
             app:icon="@android:drawable/ic_menu_camera" />
     </LinearLayout>
 
@@ -110,24 +108,14 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="8dp" />
 
     <!-- Order Total -->
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
-        app:cardElevation="4dp">
-
-        <TextView
-            android:id="@+id/textTotal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="16dp"
-            android:gravity="center"
-            android:text="Total: $0.00"
-            android:textAppearance="?attr/textAppearanceHeadline6" />
-    </com.google.android.material.card.MaterialCardView>
+        app:cardElevation="4dp" />
 
     <!-- Action Buttons -->
     <LinearLayout
@@ -138,24 +126,24 @@
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnPrintOrder"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:layout_marginStart="4dp"
             android:layout_marginEnd="4dp"
-            android:text="Print"
-            android:textSize="14sp"
-            app:icon="@android:drawable/ic_menu_send"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+            android:layout_weight="1"
+            android:text="چاپ"
+            android:textSize="24sp"
+            app:icon="@android:drawable/ic_menu_send" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnConfirmOrder"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="2"
             android:layout_marginStart="4dp"
-            android:text="Confirm"
-            android:textSize="14sp"
+            android:layout_weight="2"
+            android:text="تایید:"
+            android:textSize="24sp"
             app:icon="@android:drawable/ic_menu_save" />
     </LinearLayout>
 

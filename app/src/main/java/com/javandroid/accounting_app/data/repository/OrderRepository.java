@@ -54,6 +54,14 @@ public class OrderRepository {
         return db.orderDao().getOrderItems(orderId);
     }
 
+    public LiveData<OrderEntity> getOrderById(long orderId) {
+        return db.orderDao().getOrderById(orderId);
+    }
+
+    public OrderEntity getOrderByIdSync(long orderId) {
+        return db.orderDao().getOrderByIdSync(orderId);
+    }
+
     public void getProductByBarcode(String barcode, OnProductResultCallback callback) {
         executor.execute(() -> {
             ProductEntity product = db.productDao().getProductByBarcodeSync(barcode);

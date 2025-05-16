@@ -32,7 +32,7 @@ public class AddUserFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-            @Nullable Bundle savedInstanceState) {
+                             @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_add_user, container, false);
     }
 
@@ -42,8 +42,8 @@ public class AddUserFragment extends Fragment {
 
         etUsername = view.findViewById(R.id.etUsername);
         etPassword = view.findViewById(R.id.etPassword);
-        etFullName = view.findViewById(R.id.etFullName);
-        etRole = view.findViewById(R.id.etRole);
+//        etFullName = view.findViewById(R.id.etFullName);
+//        etRole = view.findViewById(R.id.etRole);
 
         MaterialButton btnSave = view.findViewById(R.id.btnSaveUser);
         btnSave.setOnClickListener(v -> saveUser());
@@ -55,8 +55,8 @@ public class AddUserFragment extends Fragment {
     private void saveUser() {
         String username = etUsername.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
-        String fullName = etFullName.getText().toString().trim();
-        String role = etRole.getText().toString().trim();
+//        String fullName = etFullName.getText().toString().trim();
+//        String role = etRole.getText().toString().trim();
 
         if (username.isEmpty() || password.isEmpty()) {
             Toast.makeText(requireContext(), "Username and password are required",
@@ -67,8 +67,8 @@ public class AddUserFragment extends Fragment {
         UserEntity user = new UserEntity();
         user.setUsername(username);
         user.setPassword(password);
-        user.setFullName(fullName);
-        user.setRole(role);
+//        user.setFullName(fullName);/
+//        user.setRole(role);
 
         userViewModel.insert(user);
         Toast.makeText(requireContext(), "User added successfully", Toast.LENGTH_SHORT).show();

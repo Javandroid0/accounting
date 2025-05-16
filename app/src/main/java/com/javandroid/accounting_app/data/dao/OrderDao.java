@@ -29,6 +29,12 @@ public interface OrderDao {
     @Query("SELECT * FROM order_items WHERE orderId = :orderId")
     LiveData<List<OrderItemEntity>> getOrderItems(long orderId);
 
+    @Query("SELECT * FROM orders WHERE orderId = :orderId LIMIT 1")
+    LiveData<OrderEntity> getOrderById(long orderId);
+
+    @Query("SELECT * FROM orders WHERE orderId = :orderId LIMIT 1")
+    OrderEntity getOrderByIdSync(long orderId);
+
     @Update
     void updateOrder(OrderEntity order);
 

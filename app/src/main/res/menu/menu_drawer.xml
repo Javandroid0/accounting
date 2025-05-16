@@ -1,9 +1,0 @@
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:id="@+id/nav_customer1"
-        android:title="Customer 1" />
-    <item
-        android:id="@+id/nav_customer2"
-        android:title="Customer 2" />
-    <!-- Add more dynamically or statically -->
-</menu>

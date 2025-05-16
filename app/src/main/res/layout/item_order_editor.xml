@@ -11,37 +11,10 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="4"
-        android:textStyle="bold"
-        android:text="Product Name" />
+        android:text="Product Name"
+        android:textSize="20sp"
+        android:textStyle="bold" />
 
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
-
-        <ImageButton
-            android:id="@+id/decrease_button"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:src="@android:drawable/ic_menu_add"
-            android:rotation="90"
-            android:contentDescription="Decrease quantity" />
-
-        <EditText
-            android:id="@+id/quantity_edit"
-            android:layout_width="60dp"
-            android:layout_height="wrap_content"
-            android:hint="Qty"
-            android:inputType="numberDecimal" />
-
-        <ImageButton
-            android:id="@+id/increase_button"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:src="@android:drawable/ic_menu_add"
-            android:contentDescription="Increase quantity" />
-    </LinearLayout>
 
     <EditText
         android:id="@+id/price_edit"
@@ -51,10 +24,31 @@
         android:hint="Price"
         android:inputType="numberDecimal" />
 
-    <Button
-        android:id="@+id/delete_button"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Delete" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <Button
+            android:id="@+id/decrease_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="−" />
+
+        <EditText
+            android:id="@+id/quantity_edit"
+            android:layout_width="60dp"
+            android:layout_height="wrap_content"
+            android:hint="Qty"
+            android:inputType="numberDecimal" />
+
+        <Button
+            android:id="@+id/increase_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="+" />
+    </LinearLayout>
+
 
 </LinearLayout>

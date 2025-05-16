@@ -2,15 +2,6 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <item
-        android:id="@+id/action_open_order_editor"
-        android:title="Edit Orders"
-        app:showAsAction="never" />
-
-    <item
-        android:id="@+id/action_open_product_editor"
-        android:title="Edit Products"
-        app:showAsAction="never" />
 
     <item
         android:id="@+id/action_customer_info"

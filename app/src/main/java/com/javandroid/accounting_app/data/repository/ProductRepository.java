@@ -1,6 +1,7 @@
 package com.javandroid.accounting_app.data.repository;
 
 import android.content.Context;
+import android.util.Log;
 
 import androidx.lifecycle.LiveData;
 
@@ -16,6 +17,7 @@ public class ProductRepository {
 
     private final ProductDao productDao;
     private final ExecutorService executor;
+    private static final String TAG = "ProductRepository";
 
     public ProductRepository(Context context) {
         AppDatabase db = AppDatabase.getInstance(context);
@@ -32,13 +34,40 @@ public class ProductRepository {
     }
 
     public void update(ProductEntity product) {
-        executor.execute(() -> productDao.update(product));
+        executor.execute(() -> {
+            Log.d(TAG, "Updating single product: " + product.getName() + ", ID=" + product.getProductId());
+            productDao.update(product);
+        });
     }
 
     public void update(List<ProductEntity> products) {
         executor.execute(() -> {
-            for (ProductEntity product : products) {
-                productDao.update(product);
+            Log.d(TAG, "Updating " + products.size() + " products");
+            try {
+                // First, try to update each product individually with more detailed logging
+                for (ProductEntity product : products) {
+                    try {
+                        Log.d(TAG, "Updating product: " + product.getName() +
+                                ", ID=" + product.getProductId() +
+                                ", Stock=" + product.getStock() +
+                                ", SellPrice=" + product.getSellPrice() +
+                                ", BuyPrice=" + product.getBuyPrice());
+                        productDao.update(product);
+                    } catch (Exception ex) {
+                        Log.e(TAG, "Error updating product " + product.getName() + ": " + ex.getMessage(), ex);
+                    }
+                }
+
+                // Then try the bulk update as a separate step for redundancy
+                try {
+                    productDao.updateAll(products);
+                    Log.d(TAG, "Bulk update also completed successfully");
+                } catch (Exception e) {
+                    Log.e(TAG, "Bulk update failed, but individual updates were already attempted: " + e.getMessage(),
+                            e);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error in product update process: " + e.getMessage(), e);
             }
         });
     }
@@ -63,11 +92,10 @@ public class ProductRepository {
 
     public LiveData<ProductEntity> getProductByBarcode(String barcode) {
         // System.out.println(getProductByBarcodeSync(barcode));
-        return productDao.getProductByBarcode(barcode); // assuming you have productDao
+        return productDao.getProductByBarcode(barcode);
     }
 
     public LiveData<ProductEntity> getProductById(long productId) {
         return productDao.getProductById(productId);
     }
-
 }
