@@ -40,6 +40,7 @@ public class ProductRepository {
         });
     }
 
+
     public void update(List<ProductEntity> products) {
         executor.execute(() -> {
             Log.d(TAG, "Updating " + products.size() + " products");

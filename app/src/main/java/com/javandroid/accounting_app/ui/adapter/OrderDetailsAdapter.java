@@ -2,7 +2,6 @@ package com.javandroid.accounting_app.ui.adapter;
 
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
 
@@ -17,39 +16,33 @@ import com.javandroid.accounting_app.databinding.ItemOrderEditorBinding;
 import java.util.ArrayList;
 import java.util.List;
 
-public class OrderEditorAdapter extends ListAdapter<OrderItemEntity, RecyclerView.ViewHolder> {
+/**
+ * Specialized adapter for the OrderDetailsFragment for viewing and editing
+ * existing orders
+ */
+public class OrderDetailsAdapter extends ListAdapter<OrderItemEntity, RecyclerView.ViewHolder> {
 
     private final OnOrderItemChangeListener listener;
     private List<OrderItemEntity> originalList;
     private List<OrderItemEntity> filteredList;
     private boolean isBinding = false;
-    private static final String TAG = "OrderEditorAdapter";
+    private static final String TAG = "OrderDetailsAdapter";
 
     private static final DiffUtil.ItemCallback<OrderItemEntity> DIFF_CALLBACK = new DiffUtil.ItemCallback<OrderItemEntity>() {
         @Override
         public boolean areItemsTheSame(@NonNull OrderItemEntity oldItem, @NonNull OrderItemEntity newItem) {
-            // Always use the unique itemId for identity comparison
             return oldItem.getItemId() == newItem.getItemId();
         }
 
         @Override
         public boolean areContentsTheSame(@NonNull OrderItemEntity oldItem, @NonNull OrderItemEntity newItem) {
-            // Compare all relevant fields that would require a UI update
             return oldItem.getQuantity() == newItem.getQuantity() &&
                     oldItem.getSellPrice() == newItem.getSellPrice() &&
                     oldItem.getProductName().equals(newItem.getProductName());
         }
-
-        @Override
-        public Object getChangePayload(@NonNull OrderItemEntity oldItem, @NonNull OrderItemEntity newItem) {
-            // Just log the payload for debugging
-            Log.d(TAG, "getChangePayload called for: " + oldItem.getProductName() +
-                    " (Old Qty=" + oldItem.getQuantity() + ", New Qty=" + newItem.getQuantity() + ")");
-            return super.getChangePayload(oldItem, newItem);
-        }
     };
 
-    public OrderEditorAdapter(OnOrderItemChangeListener listener) {
+    public OrderDetailsAdapter(OnOrderItemChangeListener listener) {
         super(DIFF_CALLBACK);
         this.listener = listener;
         this.originalList = new ArrayList<>();
@@ -107,78 +100,47 @@ public class OrderEditorAdapter extends ListAdapter<OrderItemEntity, RecyclerVie
         void onDelete(OrderItemEntity item);
     }
 
-    // Inner class that uses ViewBinding instead of directly extending
-    // RecyclerView.ViewHolder
-    private class OrderItemViewHolder extends RecyclerView.ViewHolder {
+    class OrderItemViewHolder extends RecyclerView.ViewHolder {
         private final ItemOrderEditorBinding binding;
         private OrderItemEntity currentItem;
         private TextWatcher quantityWatcher;
         private TextWatcher priceWatcher;
 
-        public OrderItemViewHolder(ItemOrderEditorBinding binding) {
+        OrderItemViewHolder(ItemOrderEditorBinding binding) {
             super(binding.getRoot());
             this.binding = binding;
-            setupListeners();
-        }
 
-        private void setupListeners() {
-            // Quantity changes
-            // binding.quantityEdit.setOnFocusChangeListener((v, hasFocus) -> {
-            // if (hasFocus) {
-            // binding.quantityEdit.selectAll();
-            // }
-            // });
+            // Instead of using a non-existent deleteButton, we'll use the decrease button
+            // for now
+            // as a temporary solution
+            binding.decreaseButton.setOnLongClickListener(v -> {
+                int position = getBindingAdapterPosition();
+                if (position != RecyclerView.NO_POSITION) {
+                    OrderItemEntity item = getItem(position);
+                    listener.onDelete(item);
+                    return true;
+                }
+                return false;
+            });
 
-            // Button listeners
+            // Set up quantity adjustment with existing buttons
             binding.decreaseButton.setOnClickListener(v -> {
-                if (currentItem != null) {
-                    if (currentItem.getQuantity() <= 1) {
-                        listener.onDelete(currentItem);
-                    } else {
-                        double newQuantity = currentItem.getQuantity() - 1;
-                        isBinding = true;
-
-                        // Format quantity as integer if it's a whole number
-                        if (newQuantity == Math.floor(newQuantity)) {
-                            binding.quantityEdit.setText(String.format("%.0f", newQuantity));
-                        } else {
-                            binding.quantityEdit.setText(String.valueOf(newQuantity));
-                        }
-
-                        isBinding = false;
-                        listener.onQuantityChanged(currentItem, newQuantity);
-                        updateDecreaseButtonAppearance(newQuantity);
-                    }
+                int position = getBindingAdapterPosition();
+                if (position != RecyclerView.NO_POSITION) {
+                    OrderItemEntity item = getItem(position);
+                    double newQuantity = Math.max(0, item.getQuantity() - 1);
+                    binding.quantityEdit.setText(String.valueOf(newQuantity));
                 }
             });
 
             binding.increaseButton.setOnClickListener(v -> {
-                if (currentItem != null) {
-                    double newQuantity = currentItem.getQuantity() + 1;
-                    isBinding = true;
-
-                    // Format quantity as integer if it's a whole number
-                    if (newQuantity == Math.floor(newQuantity)) {
-                        binding.quantityEdit.setText(String.format("%.0f", newQuantity));
-                    } else {
-                        binding.quantityEdit.setText(String.valueOf(newQuantity));
-                    }
-
-                    isBinding = false;
-                    listener.onQuantityChanged(currentItem, newQuantity);
-                    updateDecreaseButtonAppearance(newQuantity);
+                int position = getBindingAdapterPosition();
+                if (position != RecyclerView.NO_POSITION) {
+                    OrderItemEntity item = getItem(position);
+                    double newQuantity = item.getQuantity() + 1;
+                    binding.quantityEdit.setText(String.valueOf(newQuantity));
                 }
             });
-        }
-
-        private void updateDecreaseButtonAppearance(double quantity) {
-            // if (quantity <= 1) {
-            //
-            // } else {
-            // binding.decreaseButton.setImageResource(android.R.drawable.ic_menu_close_clear_cancel);
-            // }
-            binding.decreaseButton.setText(quantity <= 1 ? "🗑" : "−");
-            ;
         }
 
         public void bind(OrderItemEntity item) {
@@ -213,10 +175,6 @@ public class OrderEditorAdapter extends ListAdapter<OrderItemEntity, RecyclerVie
 
             isBinding = false;
 
-            // Set icons
-            // binding.increaseButton.setImageResource(android.R.drawable.ic_menu_add);
-            updateDecreaseButtonAppearance(item.getQuantity());
-
             // Create and add new watchers
             quantityWatcher = createQuantityWatcher(item);
             priceWatcher = createPriceWatcher(item);
@@ -244,7 +202,6 @@ public class OrderEditorAdapter extends ListAdapter<OrderItemEntity, RecyclerVie
                         try {
                             double newQuantity = Double.parseDouble(s.toString());
                             listener.onQuantityChanged(item, newQuantity);
-                            updateDecreaseButtonAppearance(newQuantity);
                         } catch (NumberFormatException e) {
                             isBinding = true;
                             binding.quantityEdit.setText(String.valueOf(item.getQuantity()));

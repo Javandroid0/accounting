@@ -59,7 +59,21 @@
         android:id="@+id/orderEditorFragment"
         android:name="com.javandroid.accounting_app.ui.fragment.OrderEditorFragment"
         android:label="Order Editor"
-        tools:layout="@layout/fragment_order_editor" />
+        tools:layout="@layout/fragment_order_editor">
+        <action
+            android:id="@+id/action_orderEditorFragment_to_orderDetailsFragment"
+            app:destination="@id/orderDetailsFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/orderDetailsFragment"
+        android:name="com.javandroid.accounting_app.ui.fragment.OrderDetailsFragment"
+        android:label="Order Details"
+        tools:layout="@layout/fragment_order_details">
+        <argument
+            android:name="orderId"
+            app:argType="long" />
+    </fragment>
 
     <fragment
         android:id="@+id/productEditorFragment"

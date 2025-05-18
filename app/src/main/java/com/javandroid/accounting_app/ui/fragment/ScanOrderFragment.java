@@ -7,6 +7,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -60,6 +61,7 @@ import java.util.concurrent.Executors;
 
 public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.OnOrderItemChangeListener {
 
+    private static final String TAG = "ScanOrderFragment";
     private FragmentScanOrderBinding binding;
     private OrderViewModel orderViewModel;
     private ProductViewModel productViewModel;
@@ -117,6 +119,12 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
                 }
             });
 
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        Log.d(TAG, "DEBUG: ScanOrderFragment created");
+    }
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -128,6 +136,7 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        Log.d(TAG, "DEBUG: ScanOrderFragment view created");
 
         initViewModels();
         initViews(view);
@@ -142,8 +151,38 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
     @Override
     public void onResume() {
         super.onResume();
+        Log.d(TAG, "DEBUG: ScanOrderFragment resumed");
+
+        // Check current order state
+        OrderEntity currentOrder = orderViewModel != null ? orderViewModel.getCurrentOrder().getValue() : null;
+        List<OrderItemEntity> currentItems = orderViewModel != null ? orderViewModel.getCurrentOrderItems().getValue()
+                : null;
+
+        Log.d(TAG, "DEBUG: Current order state on resume - " +
+                "order: " + (currentOrder != null ? currentOrder.getOrderId() : "null") +
+                ", customerId: " + (currentOrder != null ? currentOrder.getCustomerId() : "null") +
+                ", items: " + (currentItems != null ? currentItems.size() : 0));
+
         // Always set focus to barcode input when resuming
         refocusBarcodeInput();
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        Log.d(TAG, "DEBUG: ScanOrderFragment paused");
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        Log.d(TAG, "DEBUG: ScanOrderFragment stopped");
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        Log.d(TAG, "DEBUG: ScanOrderFragment destroyed");
     }
 
     private void initViewModels() {
@@ -151,6 +190,7 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
         productViewModel = new ViewModelProvider(requireActivity()).get(ProductViewModel.class);
         customerViewModel = new ViewModelProvider(requireActivity()).get(CustomerViewModel.class);
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
+        Log.d(TAG, "DEBUG: ViewModels initialized");
     }
 
     private void initViews(View view) {
@@ -158,6 +198,7 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
 
         // Initially disable barcode input until customer and user are selected
         updateBarcodeInputState();
+        Log.d(TAG, "DEBUG: Views initialized");
     }
 
     private void setupRecyclerView(View view) {
@@ -165,6 +206,7 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
         adapter = new OrderEditorAdapter(this);
         recyclerView.setAdapter(adapter);
+        Log.d(TAG, "DEBUG: RecyclerView setup completed");
     }
 
     private void setupListeners(View view) {
@@ -218,8 +260,11 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
         userViewModel.getCurrentUser().observe(getViewLifecycleOwner(), user -> {
             currentUser = user;
             if (user != null) {
+                Log.d(TAG, "DEBUG: User changed to: " + user.getUsername() + ", ID: " + user.getUserId());
                 orderViewModel.setCurrentUserId(user.getUserId());
                 updateUserDisplay(user);
+            } else {
+                Log.d(TAG, "DEBUG: User cleared (null)");
             }
             // Check if we can enable the barcode input
             updateBarcodeInputState();
@@ -228,7 +273,33 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
         // Observe selected customer
         customerViewModel.getSelectedCustomer().observe(getViewLifecycleOwner(), customer -> {
             selectedCustomer = customer;
-            updateCustomerDisplay(customer);
+            if (customer != null) {
+                Log.d(TAG, "DEBUG: Customer changed to: " + customer.getName() + ", ID: " + customer.getCustomerId());
+
+                // Check if we are changing customers and get current order info
+                OrderEntity currentOrder = orderViewModel.getCurrentOrder().getValue();
+                long oldCustomerId = currentOrder != null ? currentOrder.getCustomerId() : 0;
+                List<OrderItemEntity> currentItems = orderViewModel.getCurrentOrderItems().getValue();
+                int currentItemCount = currentItems != null ? currentItems.size() : 0;
+
+                Log.d(TAG, "DEBUG: Before customer change - oldCustomerId: " + oldCustomerId +
+                        ", newCustomerId: " + customer.getCustomerId() +
+                        ", itemCount: " + currentItemCount);
+
+                // This will trigger caching of previous customer's order
+                orderViewModel.setCustomerId(customer.getCustomerId());
+
+                // Check state after change
+                currentOrder = orderViewModel.getCurrentOrder().getValue();
+                currentItems = orderViewModel.getCurrentOrderItems().getValue();
+                Log.d(TAG, "DEBUG: After customer change - customerId: " +
+                        (currentOrder != null ? currentOrder.getCustomerId() : "null") +
+                        ", itemCount: " + (currentItems != null ? currentItems.size() : 0));
+
+                updateCustomerDisplay(customer);
+            } else {
+                Log.d(TAG, "DEBUG: Customer cleared (null)");
+            }
 
             // Check if we can enable the barcode input
             updateBarcodeInputState();
@@ -237,25 +308,68 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
         // Observe current order items
         orderViewModel.getCurrentOrderItems().observe(getViewLifecycleOwner(), items -> {
             if (items != null) {
+                Log.d(TAG, "DEBUG: Order items updated - count: " + items.size());
+
+                // Log first few items for debugging
+                for (int i = 0; i < Math.min(items.size(), 3); i++) {
+                    OrderItemEntity item = items.get(i);
+                    Log.d(TAG, "DEBUG: Item " + i + ": " + item.getProductName() +
+                            ", quantity: " + item.getQuantity() +
+                            ", price: " + item.getSellPrice());
+                }
+                if (items.size() > 3) {
+                    Log.d(TAG, "DEBUG: ... and " + (items.size() - 3) + " more items");
+                }
+
                 // Create a new list to force adapter update
                 List<OrderItemEntity> itemsList = new ArrayList<>(items);
                 adapter.submitList(null); // First clear the list
                 adapter.submitList(itemsList); // Then set the new list
                 updateTotalDisplay();
+            } else {
+                Log.d(TAG, "DEBUG: Order items set to null");
+                adapter.submitList(null);
             }
         });
 
-        // Observe scanned products
-        orderViewModel.getLastScannedProduct().observe(getViewLifecycleOwner(), product -> {
-            if (product != null) {
-                orderViewModel.addProduct(product, 1);
+        // Monitor current order for changes
+        orderViewModel.getCurrentOrder().observe(getViewLifecycleOwner(), order -> {
+            if (order != null) {
+                Log.d(TAG, "DEBUG: Current order updated - ID: " + order.getOrderId() +
+                        ", customerId: " + order.getCustomerId() +
+                        ", total: " + order.getTotal());
             } else {
-                String barcode = barcodeInput.getText().toString().trim();
-                if (!barcode.isEmpty()) {
-                    openAddProductFragment(barcode);
-                } else {
-                    Toast.makeText(requireContext(), "Please enter a barcode", Toast.LENGTH_SHORT).show();
+                Log.d(TAG, "DEBUG: Current order set to null");
+            }
+        });
+
+        // Product operation messages logging
+        orderViewModel.getProductOperationMessage().observe(getViewLifecycleOwner(), message -> {
+            if (message != null) {
+                Log.d(TAG, "DEBUG: Product operation: " + message.getResult() +
+                        " - " + message.getMessage());
+                // Handle specific result types
+                switch (message.getResult()) {
+                    case NOT_FOUND:
+                        // If product not found, we can open add product screen
+                        // The barcode will be provided by the productNotFoundEvent
+                        break;
+                    case ADDED_SUCCESSFULLY:
+                        // Refocus barcode input for next scan
+                        refocusBarcodeInput();
+                        break;
+                    case OUT_OF_STOCK:
+                    case ERROR:
+                        // Just show the toast message
+                        break;
                 }
+            }
+        });
+
+        // Also keep the productNotFoundEvent observer to handle navigation
+        orderViewModel.getProductNotFoundEvent().observe(getViewLifecycleOwner(), barcode -> {
+            if (barcode != null && !barcode.isEmpty()) {
+                openAddProductFragment(barcode);
             }
         });
     }
@@ -263,55 +377,11 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
     private void handleBarcodeInput() {
         String barcode = barcodeInput.getText().toString().trim();
         if (!barcode.isEmpty()) {
-            // Store the barcode in a final variable to use it in the lambda
-            final String finalBarcode = barcode;
-
             // Clear input field immediately to prevent double-processing
             barcodeInput.setText("");
 
-            // Use executor to run database query on background thread
-            executor.execute(() -> {
-                try {
-                    // This runs on a background thread
-                    ProductEntity product = productViewModel.getProductByBarcodeSync(finalBarcode);
-
-                    // Update UI on main thread
-                    mainHandler.post(() -> {
-                        if (product != null) {
-                            // Default quantity to add
-                            double quantityToAdd = 1.0;
-
-                            // Check if there's enough stock
-                            if (product.getStock() >= quantityToAdd) {
-                                // Product found, add to order
-                                orderViewModel.addProduct(product, quantityToAdd);
-
-                                Toast.makeText(requireContext(),
-                                        "Product added: " + product.getName(),
-                                        Toast.LENGTH_SHORT).show();
-                            } else {
-                                Toast.makeText(requireContext(),
-                                        "Product out of stock: " + product.getName(),
-                                        Toast.LENGTH_SHORT).show();
-                            }
-                        } else {
-                            // Product not found, open add product screen
-                            Toast.makeText(requireContext(),
-                                    "Product not found. Please add details.",
-                                    Toast.LENGTH_SHORT).show();
-                            openAddProductFragment(finalBarcode);
-                        }
-                        // Input field was already cleared
-                    });
-                } catch (Exception e) {
-                    // Handle any errors
-                    mainHandler.post(() -> {
-                        Toast.makeText(requireContext(),
-                                "Error: " + e.getMessage(),
-                                Toast.LENGTH_SHORT).show();
-                    });
-                }
-            });
+            // Use the new direct method instead of the previous approach
+            orderViewModel.addProductByBarcode(barcode, 1.0);
         }
     }
 
@@ -381,6 +451,13 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
         }
 
         OrderEntity currentOrder = orderViewModel.getCurrentOrder().getValue();
+        List<OrderItemEntity> items = orderViewModel.getCurrentOrderItems().getValue();
+
+        Log.d(TAG, "DEBUG: Confirming order - ID: " + (currentOrder != null ? currentOrder.getOrderId() : "null") +
+                ", customerId: " + (currentOrder != null ? currentOrder.getCustomerId() : "null") +
+                ", items: " + (items != null ? items.size() : 0) +
+                ", total: " + (currentOrder != null ? currentOrder.getTotal() : "null"));
+
         if (currentOrder != null) {
             currentOrder.setCustomerId(selectedCustomer.getCustomerId());
             currentOrder.setUserId(currentUser.getUserId());
@@ -392,8 +469,14 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
             // Focus on barcode input to start a new order immediately
             refocusBarcodeInput();
 
-            // Remove the navigation up that was causing us to leave the page
-            // Navigation.findNavController(requireView()).navigateUp();
+            // Check state after confirmation
+            OrderEntity newOrder = orderViewModel.getCurrentOrder().getValue();
+            List<OrderItemEntity> newItems = orderViewModel.getCurrentOrderItems().getValue();
+
+            Log.d(TAG, "DEBUG: After confirmation - new order ID: " +
+                    (newOrder != null ? newOrder.getOrderId() : "null") +
+                    ", customerId: " + (newOrder != null ? newOrder.getCustomerId() : "null") +
+                    ", items: " + (newItems != null ? newItems.size() : 0));
         }
     }
 
@@ -652,49 +735,9 @@ public class ScanOrderFragment extends Fragment implements OrderEditorAdapter.On
     }
 
     private void fetchProductAndAdd(String barcode) {
-        // This should be treated the same way as handleBarcodeInput
+        // Use the new direct method instead of the previous approach
         if (barcode != null && !barcode.isEmpty()) {
-            final String finalBarcode = barcode;
-
-            // Use executor to run database query on background thread
-            executor.execute(() -> {
-                try {
-                    // This runs on a background thread
-                    ProductEntity product = productViewModel.getProductByBarcodeSync(finalBarcode);
-
-                    // Update UI on main thread
-                    mainHandler.post(() -> {
-                        if (product != null) {
-                            // Check if there's enough stock
-                            if (product.getStock() > 0) {
-                                // Product found, add to order
-                                orderViewModel.addProduct(product, 1);
-
-                                Toast.makeText(requireContext(),
-                                        "Product added: " + product.getName(),
-                                        Toast.LENGTH_SHORT).show();
-                            } else {
-                                Toast.makeText(requireContext(),
-                                        "Product out of stock: " + product.getName(),
-                                        Toast.LENGTH_SHORT).show();
-                            }
-                        } else {
-                            // Product not found, open add product screen
-                            Toast.makeText(requireContext(),
-                                    "Product not found. Please add details.",
-                                    Toast.LENGTH_SHORT).show();
-                            openAddProductFragment(finalBarcode);
-                        }
-                    });
-                } catch (Exception e) {
-                    // Handle any errors
-                    mainHandler.post(() -> {
-                        Toast.makeText(requireContext(),
-                                "Error: " + e.getMessage(),
-                                Toast.LENGTH_SHORT).show();
-                    });
-                }
-            });
+            orderViewModel.addProductByBarcode(barcode, 1.0);
         }
     }
 

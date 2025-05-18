@@ -16,7 +16,6 @@ import java.util.List;
 public class ProductViewModel extends AndroidViewModel {
 
     private final ProductRepository productRepository;
-    private final MutableLiveData<List<ProductEntity>> productListLiveData = new MutableLiveData<>();
     private final LiveData<List<ProductEntity>> allProducts;
     private final MutableLiveData<ProductEntity> selectedProduct = new MutableLiveData<>();
 
