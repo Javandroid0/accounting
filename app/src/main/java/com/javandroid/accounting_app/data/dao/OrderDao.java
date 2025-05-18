@@ -41,6 +41,18 @@ public interface OrderDao {
     @Query("SELECT * FROM orders WHERE orderId = :orderId LIMIT 1")
     OrderEntity getOrderByIdSync(long orderId);
 
+    @Query("SELECT SUM((oi.sellPrice - oi.buyPrice) * oi.quantity) AS profit " +
+            "FROM order_items oi " +
+            "JOIN orders o ON oi.orderId = o.orderId " +
+            "WHERE o.userId = :userId")
+    double calculateProfitByUserSync(long userId);
+
+    @Query("SELECT SUM((oi.sellPrice - oi.buyPrice) * oi.quantity) AS profit " +
+            "FROM order_items oi " +
+            "JOIN orders o ON oi.orderId = o.orderId " +
+            "WHERE o.userId = :userId AND o.customerId = :customerId")
+    double calculateProfitByUserAndCustomerSync(long userId, long customerId);
+
     @Update
     void updateOrder(OrderEntity order);
 

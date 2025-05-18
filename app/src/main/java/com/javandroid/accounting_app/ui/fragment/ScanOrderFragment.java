@@ -51,6 +51,7 @@ public class ScanOrderFragment extends Fragment {
     private TextInputEditText barcodeInput;
     private CustomerEntity selectedCustomer;
     private UserEntity currentUser;
+    private String currentUserId;
 
     // Delegate objects to handle specific functionality
     private OrderScanningDelegate scanningDelegate;
@@ -225,13 +226,16 @@ public class ScanOrderFragment extends Fragment {
             updateBarcodeInputState();
         });
 
+        // Get the current user
         userViewModel.getCurrentUser().observe(getViewLifecycleOwner(), user -> {
-            currentUser = user;
-            // Update the user in delegates
-            printingDelegate.setUser(user);
-            managementDelegate.setUser(user);
-            updateUserDisplay(user);
-            updateBarcodeInputState();
+            if (user != null) {
+                currentUserId = String.valueOf(user.getUserId());
+                currentUser = user;
+                updateUserDisplay(user);
+                updateBarcodeInputState();
+                // Pass user to management delegate
+                managementDelegate.setUser(user);
+            }
         });
 
         // Observe order items to enable/disable confirm and print buttons

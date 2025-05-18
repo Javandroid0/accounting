@@ -15,9 +15,10 @@ import java.util.concurrent.Executors;
 public class CustomerRepository {
     private final CustomerDao customerDao;
     private final ExecutorService executor;
+    private final AppDatabase db;
 
     public CustomerRepository(Context context) {
-        AppDatabase db = AppDatabase.getInstance(context);
+        db = AppDatabase.getInstance(context);
         customerDao = db.customerDao();
         executor = Executors.newSingleThreadExecutor();
     }
@@ -51,6 +52,13 @@ public class CustomerRepository {
 
     public LiveData<CustomerEntity> getCustomerById(long customerId) {
         return customerDao.getCustomerById(customerId);
+    }
+
+    /**
+     * Get all customers synchronously
+     */
+    public List<CustomerEntity> getAllCustomersSync() {
+        return db.customerDao().getAllCustomersSync();
     }
 
     public interface OnCustomerResultCallback {

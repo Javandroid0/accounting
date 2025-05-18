@@ -241,7 +241,7 @@ public class CurrentOrderViewModel extends AndroidViewModel {
     }
 
     /**
-     * Confirm the current order, saving it to the database
+     * Confirm the current order
      */
     public void confirmOrder() {
         OrderEntity order = stateRepository.getCurrentOrderValue();
@@ -251,36 +251,59 @@ public class CurrentOrderViewModel extends AndroidViewModel {
             // Get current customer ID to clear state later
             final long customerId = order.getCustomerId();
             final long userId = order.getUserId();
-            
-            Log.d(TAG, "Confirming order - customer=" + customerId + ", user=" + userId + 
-                ", total=" + order.getTotal() + ", items=" + items.size());
+
+            Log.d(TAG, "Confirming order - customer=" + customerId + ", user=" + userId +
+                    ", total=" + order.getTotal() + ", items=" + items.size());
+
+            // Ensure the order and all items have valid IDs
+            if (order.getCustomerId() <= 0 || order.getUserId() <= 0) {
+                Log.e(TAG, "Cannot confirm order: invalid customer ID (" + order.getCustomerId() +
+                        ") or user ID (" + order.getUserId() + ")");
+                mainHandler.post(() -> {
+                    Toast.makeText(getApplication(), "Cannot save order: missing customer or user ID",
+                            Toast.LENGTH_LONG).show();
+                });
+                return;
+            }
 
             // Create a final reference to the items to be used in callback
             final List<OrderItemEntity> finalItems = new ArrayList<>(items);
-            
+
             orderRepository.insertOrderAndGetId(order, new OrderRepository.OnOrderIdResultCallback() {
                 @Override
                 public void onResult(long orderId) {
                     if (orderId > 0) {
                         Log.d(TAG, "Order saved with ID: " + orderId + ", now saving order items");
-                        
+
+                        // Set the order ID properly for logging
+                        order.setOrderId(orderId);
+
                         // Save any pending changes to existing items first
                         for (OrderItemEntity item : finalItems) {
                             // Update existing items in the database
                             if (item.getOrderId() != null && item.getOrderId() > 0) {
-                                Log.d(TAG, "Updating existing order item: " + item.getItemId() + 
-                                    ", product=" + item.getProductName() + 
-                                    ", quantity=" + item.getQuantity());
+                                Log.d(TAG, "Updating existing order item: " + item.getItemId() +
+                                        ", product=" + item.getProductName() +
+                                        ", quantity=" + item.getQuantity());
                                 orderRepository.updateOrderItem(item);
                             } else {
                                 // Set order ID for new items
-                                Log.d(TAG, "Setting orderId=" + orderId + " for item: " + item.getItemId() + 
-                                    ", product=" + item.getProductName() + 
-                                    ", quantity=" + item.getQuantity());
+                                Log.d(TAG, "Setting orderId=" + orderId + " for item: " + item.getItemId() +
+                                        ", product=" + item.getProductName() +
+                                        ", quantity=" + item.getQuantity());
                                 item.setOrderId(orderId);
                                 orderRepository.insertOrderItem(item);
                             }
                         }
+
+                        Log.d(TAG, "All items saved for order #" + orderId + ": " + finalItems.size()
+                                + " items with total " + order.getTotal());
+
+                        // Display confirmation message
+                        mainHandler.post(() -> {
+                            Toast.makeText(getApplication(), "Order #" + orderId + " saved successfully",
+                                    Toast.LENGTH_SHORT).show();
+                        });
 
                         // We're in a background thread here, need to handle this properly
                         // Instead of resetting, create a new session
@@ -288,21 +311,22 @@ public class CurrentOrderViewModel extends AndroidViewModel {
                             Log.d(TAG, "Creating new order session for user: " + userId);
                             // Create a completely new repository for the next order
                             sessionManager.createNewSession(userId);
-                            
-                            // Instead of reassigning stateRepository, access the current one from the session manager
+
+                            // Instead of reassigning stateRepository, access the current one from the
+                            // session manager
                             // and update its values directly
                             OrderStateRepository currentRepo = sessionManager.getCurrentRepository();
-                            
+
                             // Get the new empty order and items
                             OrderEntity newEmptyOrder = currentRepo.getCurrentOrderValue();
                             List<OrderItemEntity> newEmptyItems = currentRepo.getCurrentOrderItemsValue();
-                            
-                            Log.d(TAG, "New order session created - orderId=" + 
-                                (newEmptyOrder != null ? newEmptyOrder.getOrderId() : "null") + 
-                                ", userId=" + (newEmptyOrder != null ? newEmptyOrder.getUserId() : "null") + 
-                                ", customerId=" + (newEmptyOrder != null ? newEmptyOrder.getCustomerId() : "null") + 
-                                ", total=" + (newEmptyOrder != null ? newEmptyOrder.getTotal() : "null"));
-                            
+
+                            Log.d(TAG, "New order session created - orderId=" +
+                                    (newEmptyOrder != null ? newEmptyOrder.getOrderId() : "null") +
+                                    ", userId=" + (newEmptyOrder != null ? newEmptyOrder.getUserId() : "null") +
+                                    ", customerId=" + (newEmptyOrder != null ? newEmptyOrder.getCustomerId() : "null") +
+                                    ", total=" + (newEmptyOrder != null ? newEmptyOrder.getTotal() : "null"));
+
                             // Update our state repository with these values
                             if (newEmptyOrder != null) {
                                 stateRepository.setCurrentOrder(newEmptyOrder);
@@ -320,8 +344,8 @@ public class CurrentOrderViewModel extends AndroidViewModel {
                 }
             });
         } else {
-            Log.w(TAG, "Cannot confirm order: " + 
-                (order == null ? "order is null" : (items == null ? "items is null" : "items is empty")));
+            Log.w(TAG, "Cannot confirm order: " +
+                    (order == null ? "order is null" : (items == null ? "items is null" : "items is empty")));
         }
     }
 
@@ -336,14 +360,14 @@ public class CurrentOrderViewModel extends AndroidViewModel {
             // Get current user ID to create new session later
             final long userId = order.getUserId();
             final long customerId = order.getCustomerId();
-            
-            Log.d(TAG, "Confirming order (with callback) - customer=" + customerId + 
-                ", user=" + userId + ", total=" + order.getTotal() + ", items=" + items.size());
+
+            Log.d(TAG, "Confirming order (with callback) - customer=" + customerId +
+                    ", user=" + userId + ", total=" + order.getTotal() + ", items=" + items.size());
 
             // Create a final reference to the items to be used in callback
             final List<OrderItemEntity> finalItems = new ArrayList<>(items);
             final Runnable safeCallback = callback; // Keep a final reference
-            
+
             orderRepository.insertOrderAndGetId(order, new OrderRepository.OnOrderIdResultCallback() {
                 @Override
                 public void onResult(long orderId) {
@@ -358,15 +382,15 @@ public class CurrentOrderViewModel extends AndroidViewModel {
                         for (OrderItemEntity item : finalItems) {
                             // Update existing items in the database
                             if (item.getOrderId() != null && item.getOrderId() > 0) {
-                                Log.d(TAG, "Updating existing order item: " + item.getItemId() + 
-                                    ", product=" + item.getProductName() + 
-                                    ", quantity=" + item.getQuantity());
+                                Log.d(TAG, "Updating existing order item: " + item.getItemId() +
+                                        ", product=" + item.getProductName() +
+                                        ", quantity=" + item.getQuantity());
                                 orderRepository.updateOrderItem(item);
                             } else {
                                 // Set order ID for new items
-                                Log.d(TAG, "Setting orderId=" + orderId + " for item: " + item.getItemId() + 
-                                    ", product=" + item.getProductName() + 
-                                    ", quantity=" + item.getQuantity());
+                                Log.d(TAG, "Setting orderId=" + orderId + " for item: " + item.getItemId() +
+                                        ", product=" + item.getProductName() +
+                                        ", quantity=" + item.getQuantity());
                                 item.setOrderId(orderId);
                                 orderRepository.insertOrderItem(item);
                             }
@@ -385,18 +409,18 @@ public class CurrentOrderViewModel extends AndroidViewModel {
                             Log.d(TAG, "Creating new order session for user: " + userId);
                             // Create a completely new repository for the next order
                             sessionManager.createNewSession(userId);
-                            
+
                             // Get the new repository and update our state with its values
                             OrderStateRepository currentRepo = sessionManager.getCurrentRepository();
                             OrderEntity newEmptyOrder = currentRepo.getCurrentOrderValue();
                             List<OrderItemEntity> newEmptyItems = currentRepo.getCurrentOrderItemsValue();
-                            
-                            Log.d(TAG, "New order session created - orderId=" + 
-                                (newEmptyOrder != null ? newEmptyOrder.getOrderId() : "null") + 
-                                ", userId=" + (newEmptyOrder != null ? newEmptyOrder.getUserId() : "null") + 
-                                ", customerId=" + (newEmptyOrder != null ? newEmptyOrder.getCustomerId() : "null") + 
-                                ", total=" + (newEmptyOrder != null ? newEmptyOrder.getTotal() : "null"));
-                            
+
+                            Log.d(TAG, "New order session created - orderId=" +
+                                    (newEmptyOrder != null ? newEmptyOrder.getOrderId() : "null") +
+                                    ", userId=" + (newEmptyOrder != null ? newEmptyOrder.getUserId() : "null") +
+                                    ", customerId=" + (newEmptyOrder != null ? newEmptyOrder.getCustomerId() : "null") +
+                                    ", total=" + (newEmptyOrder != null ? newEmptyOrder.getTotal() : "null"));
+
                             // Update our state repository with these values to refresh the UI
                             if (newEmptyOrder != null) {
                                 stateRepository.setCurrentOrder(newEmptyOrder);
@@ -410,7 +434,7 @@ public class CurrentOrderViewModel extends AndroidViewModel {
                         mainHandler.post(() -> {
                             Toast.makeText(getApplication(), "Error saving order", Toast.LENGTH_SHORT).show();
                         });
-                        
+
                         // Still call the callback if it exists
                         if (safeCallback != null) {
                             Log.d(TAG, "Executing callback despite order insert failure");
@@ -420,9 +444,9 @@ public class CurrentOrderViewModel extends AndroidViewModel {
                 }
             });
         } else {
-            Log.w(TAG, "Cannot confirm order with callback: " + 
-                (order == null ? "order is null" : (items == null ? "items is null" : "items is empty")));
-            
+            Log.w(TAG, "Cannot confirm order with callback: " +
+                    (order == null ? "order is null" : (items == null ? "items is null" : "items is empty")));
+
             // If there's no valid order, just run the callback
             if (callback != null) {
                 Log.d(TAG, "Executing callback without order confirmation");
@@ -448,10 +472,10 @@ public class CurrentOrderViewModel extends AndroidViewModel {
             for (OrderItemEntity item : items) {
                 double itemTotal = item.getQuantity() * item.getSellPrice();
                 total += itemTotal;
-                Log.d(TAG, "Item total calculation: " + item.getProductName() + 
-                    ", quantity=" + item.getQuantity() + 
-                    ", price=" + item.getSellPrice() + 
-                    ", subtotal=" + itemTotal);
+                Log.d(TAG, "Item total calculation: " + item.getProductName() +
+                        ", quantity=" + item.getQuantity() +
+                        ", price=" + item.getSellPrice() +
+                        ", subtotal=" + itemTotal);
             }
 
             // Ensure total is never negative - for business purposes
@@ -462,19 +486,20 @@ public class CurrentOrderViewModel extends AndroidViewModel {
 
             // Update the order total
             order.setTotal(total);
-            Log.d(TAG, "Order total recalculated: " + oldTotal + " -> " + total + 
-                " (difference: " + (total - oldTotal) + ")");
-                
+            Log.d(TAG, "Order total recalculated: " + oldTotal + " -> " + total +
+                    " (difference: " + (total - oldTotal) + ")");
+
             stateRepository.setCurrentOrder(order);
         } else {
-            Log.w(TAG, "Cannot update order total: " + 
-                (order == null ? "order is null" : "items is null"));
+            Log.w(TAG, "Cannot update order total: " +
+                    (order == null ? "order is null" : "items is null"));
         }
     }
 
     /**
      * Force refresh the items in the repository to ensure they're not lost
-     * This is needed in some cases where the repository might lose items during state transitions
+     * This is needed in some cases where the repository might lose items during
+     * state transitions
      * 
      * @param items The items to set in the repository
      */
@@ -483,23 +508,23 @@ public class CurrentOrderViewModel extends AndroidViewModel {
             Log.w(TAG, "Cannot refresh items: items list is null");
             return;
         }
-        
+
         // Create a copy to ensure we don't modify the original list
         List<OrderItemEntity> itemsCopy = new ArrayList<>(items);
         Log.d(TAG, "Refreshing " + itemsCopy.size() + " items in repository");
-        
+
         // Explicitly set the items in the repository to ensure they're not lost
         stateRepository.setCurrentOrderItems(itemsCopy);
-        
+
         // Make sure the total is updated to reflect these items
         updateOrderTotal();
-        
+
         // Log the state after refresh to verify
         OrderEntity order = stateRepository.getCurrentOrderValue();
         List<OrderItemEntity> currentItems = stateRepository.getCurrentOrderItemsValue();
-        
-        Log.d(TAG, "After refresh - items count: " + (currentItems != null ? currentItems.size() : 0) + 
-            ", total: " + (order != null ? order.getTotal() : "null"));
+
+        Log.d(TAG, "After refresh - items count: " + (currentItems != null ? currentItems.size() : 0) +
+                ", total: " + (order != null ? order.getTotal() : "null"));
     }
 
     /**
@@ -516,7 +541,8 @@ public class CurrentOrderViewModel extends AndroidViewModel {
     }
 
     /**
-     * Internal implementation of resetCurrentOrder that must be called on the main thread
+     * Internal implementation of resetCurrentOrder that must be called on the main
+     * thread
      */
     private void resetCurrentOrderInternal() {
         // Get current user ID
@@ -538,4 +564,4 @@ public class CurrentOrderViewModel extends AndroidViewModel {
             executor.shutdown();
         }
     }
-} 
+}

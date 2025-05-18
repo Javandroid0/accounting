@@ -9,17 +9,21 @@
             android:id="@+id/nav_add_user"
             android:icon="@android:drawable/ic_menu_add"
             android:title="Add New User" />
+        <item
+            android:id="@+id/nav_user_profit"
+            android:icon="@android:drawable/ic_menu_report_image"
+            android:title="User Profit Summary" />
     </group>
     <item android:title="User Management">
         <menu>
             <item
-                android:id="@+id/nav_delete_user"
-                android:icon="@android:drawable/ic_menu_delete"
-                android:title="Delete User" />
+                android:id="@+id/menu_delete_user"
+                android:title="Delete User"
+                android:icon="@android:drawable/ic_menu_delete" />
             <item
-                android:id="@+id/nav_edit_user"
-                android:icon="@android:drawable/ic_menu_edit"
-                android:title="Edit User" />
+                android:id="@+id/menu_edit_user"
+                android:title="Edit User"
+                android:icon="@android:drawable/ic_menu_edit" />
         </menu>
     </item>
 </menu> 

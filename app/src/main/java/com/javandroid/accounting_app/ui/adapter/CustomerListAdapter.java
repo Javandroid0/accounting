@@ -14,34 +14,31 @@ import com.javandroid.accounting_app.R;
 import com.javandroid.accounting_app.data.model.CustomerEntity;
 
 public class CustomerListAdapter extends ListAdapter<CustomerEntity, CustomerListAdapter.CustomerViewHolder> {
+    private final CustomerClickListener listener;
 
-    private final OnCustomerClickListener listener;
-
-    public interface OnCustomerClickListener {
-        void onCustomerClick(CustomerEntity customer);
-    }
-
-    public CustomerListAdapter(OnCustomerClickListener listener) {
-        super(new DiffUtil.ItemCallback<CustomerEntity>() {
-            @Override
-            public boolean areItemsTheSame(@NonNull CustomerEntity oldItem, @NonNull CustomerEntity newItem) {
-                return oldItem.getCustomerId() == newItem.getCustomerId();
-            }
-
-            @Override
-            public boolean areContentsTheSame(@NonNull CustomerEntity oldItem, @NonNull CustomerEntity newItem) {
-                return oldItem.getName().equals(newItem.getName());
-            }
-        });
+    public CustomerListAdapter(CustomerClickListener listener) {
+        super(DIFF_CALLBACK);
         this.listener = listener;
     }
+
+    private static final DiffUtil.ItemCallback<CustomerEntity> DIFF_CALLBACK = new DiffUtil.ItemCallback<CustomerEntity>() {
+        @Override
+        public boolean areItemsTheSame(@NonNull CustomerEntity oldItem, @NonNull CustomerEntity newItem) {
+            return oldItem.getCustomerId() == newItem.getCustomerId();
+        }
+
+        @Override
+        public boolean areContentsTheSame(@NonNull CustomerEntity oldItem, @NonNull CustomerEntity newItem) {
+            return oldItem.getName().equals(newItem.getName());
+        }
+    };
 
     @NonNull
     @Override
     public CustomerViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
+        View itemView = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_customer, parent, false);
-        return new CustomerViewHolder(view);
+        return new CustomerViewHolder(itemView);
     }
 
     @Override
@@ -50,17 +47,26 @@ public class CustomerListAdapter extends ListAdapter<CustomerEntity, CustomerLis
         holder.bind(customer, listener);
     }
 
-    static class CustomerViewHolder extends RecyclerView.ViewHolder {
-        private final TextView tvName;
+    public static class CustomerViewHolder extends RecyclerView.ViewHolder {
+        private final TextView tvCustomerName;
 
-        CustomerViewHolder(@NonNull View itemView) {
+        public CustomerViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvName = itemView.findViewById(R.id.tvCustomerName);
+            tvCustomerName = itemView.findViewById(R.id.tvCustomerName);
         }
 
-        void bind(CustomerEntity customer, OnCustomerClickListener listener) {
-            tvName.setText(customer.getName());
-            itemView.setOnClickListener(v -> listener.onCustomerClick(customer));
+        public void bind(final CustomerEntity customer, final CustomerClickListener listener) {
+            tvCustomerName.setText(customer.getName());
+
+            itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onCustomerClick(customer);
+                }
+            });
         }
+    }
+
+    public interface CustomerClickListener {
+        void onCustomerClick(CustomerEntity customer);
     }
 }

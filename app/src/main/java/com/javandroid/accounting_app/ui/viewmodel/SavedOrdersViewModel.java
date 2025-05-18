@@ -28,6 +28,10 @@ public class SavedOrdersViewModel extends AndroidViewModel {
     private OrderStateRepository stateRepository;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
+    // LiveData for profit calculations
+    private final androidx.lifecycle.MutableLiveData<Double> userProfitLiveData = new androidx.lifecycle.MutableLiveData<>();
+    private final androidx.lifecycle.MutableLiveData<Double> userCustomerProfitLiveData = new androidx.lifecycle.MutableLiveData<>();
+
     public SavedOrdersViewModel(@NonNull Application application) {
         super(application);
         orderRepository = new OrderRepository(application);
@@ -122,6 +126,41 @@ public class SavedOrdersViewModel extends AndroidViewModel {
                 Log.e(TAG, "Failed to delete order: " + e.getMessage(), e);
             }
         });
+    }
+
+    /**
+     * Calculate profit for a specific user
+     */
+    public void calculateProfitByUser(long userId) {
+        orderRepository.calculateProfitByUser(userId, profit -> {
+            Log.d(TAG, "Setting profit for user " + userId + ": " + profit);
+            userProfitLiveData.postValue(profit != 0 ? profit : 0.0);
+        });
+    }
+
+    /**
+     * Get the LiveData for user profit
+     */
+    public androidx.lifecycle.LiveData<Double> getUserProfit() {
+        return userProfitLiveData;
+    }
+
+    /**
+     * Calculate profit for a specific user and customer combination
+     */
+    public void calculateProfitByUserAndCustomer(long userId, long customerId) {
+        Log.d(TAG, "Requesting profit calculation for user " + userId + " and customer " + customerId);
+        orderRepository.calculateProfitByUserAndCustomer(userId, customerId, profit -> {
+            Log.d(TAG, "Setting profit for user " + userId + " and customer " + customerId + ": " + profit);
+            userCustomerProfitLiveData.postValue(profit != 0 ? profit : 0.0);
+        });
+    }
+
+    /**
+     * Get the LiveData for user-customer profit
+     */
+    public androidx.lifecycle.LiveData<Double> getUserCustomerProfit() {
+        return userCustomerProfitLiveData;
     }
 
     @Override

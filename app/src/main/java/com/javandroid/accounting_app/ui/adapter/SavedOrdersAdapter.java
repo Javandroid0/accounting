@@ -60,14 +60,41 @@ public class SavedOrdersAdapter extends ListAdapter<OrderEntity, SavedOrdersAdap
         }
 
         filteredList = new ArrayList<>();
-        String lowerCaseQuery = query.toLowerCase().trim();
+        String trimmedQuery = query.trim();
 
+        try {
+            // First try to parse as an integer for exact Order ID matching
+            long searchOrderId = Long.parseLong(trimmedQuery);
+
+            // Find orders that exactly match the ID
+            for (OrderEntity order : originalList) {
+                if (order.getOrderId() == searchOrderId) {
+                    filteredList.add(order);
+                }
+            }
+
+            // If we found exact matches, return only those
+            if (!filteredList.isEmpty()) {
+                submitList(filteredList);
+                return;
+            }
+        } catch (NumberFormatException e) {
+            // Not a valid number, so continue with prefix search
+        }
+
+        // If no exact match was found or the query wasn't a number,
+        // search by order ID prefix or date
+        String lowerCaseQuery = trimmedQuery.toLowerCase();
         for (OrderEntity order : originalList) {
-            // Check if query matches order ID (exact match or contains)
-            String orderId = String.valueOf(order.getOrderId());
-            if (orderId.equals(lowerCaseQuery) ||
-                    orderId.contains(lowerCaseQuery) ||
-                    order.getDate().toLowerCase().contains(lowerCaseQuery)) {
+            // Check if query is contained in order ID
+            String orderIdString = String.valueOf(order.getOrderId());
+            if (orderIdString.startsWith(trimmedQuery)) {
+                filteredList.add(order);
+                continue;
+            }
+
+            // Secondary search: Also check date
+            if (order.getDate().toLowerCase().contains(lowerCaseQuery)) {
                 filteredList.add(order);
             }
         }
@@ -81,6 +108,16 @@ public class SavedOrdersAdapter extends ListAdapter<OrderEntity, SavedOrdersAdap
      */
     public List<OrderEntity> getCurrentList() {
         return super.getCurrentList();
+    }
+
+    /**
+     * Get an order entity at a specific position
+     * 
+     * @param position The position in the list
+     * @return The OrderEntity at the specified position
+     */
+    public OrderEntity getItem(int position) {
+        return super.getItem(position);
     }
 
     @NonNull

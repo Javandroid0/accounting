@@ -146,6 +146,15 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
         exportCsvButton.setOnClickListener(v -> exportOrdersToCSV());
         saveChangesButton.setOnClickListener(v -> saveChanges());
 
+        // Add focus listener to show tips when search field is focused
+        etSearch.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                Toast.makeText(requireContext(),
+                        "Enter an Order ID to find exact matches",
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -158,6 +167,22 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
             @Override
             public void afterTextChanged(Editable s) {
                 savedOrdersAdapter.filter(s.toString());
+
+                // Show immediate feedback about search results
+                int resultCount = savedOrdersAdapter.getItemCount();
+                if (s.length() > 0) {
+                    if (resultCount == 0) {
+                        updateEmptyState(true);
+                        emptyStateTextView.setText("No orders found for ID: " + s.toString());
+                    } else if (resultCount == 1) {
+                        updateEmptyState(false);
+                        Toast.makeText(requireContext(),
+                                "Found order #" + savedOrdersAdapter.getItem(0).getOrderId(),
+                                Toast.LENGTH_SHORT).show();
+                    } else {
+                        updateEmptyState(false);
+                    }
+                }
             }
         });
     }

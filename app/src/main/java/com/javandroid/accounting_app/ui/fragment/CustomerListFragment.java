@@ -44,14 +44,14 @@ public class CustomerListFragment extends Fragment {
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
 
         adapter = new CustomerListAdapter(customer -> {
-            customerViewModel.selectCustomer(customer);
+            customerViewModel.setSelectedCustomer(customer);
             Navigation.findNavController(view)
                     .navigate(R.id.action_customerListFragment_to_customerDetailFragment);
         });
 
         recyclerView.setAdapter(adapter);
 
-        customerViewModel.getCustomers().observe(getViewLifecycleOwner(), customers -> {
+        customerViewModel.getAllCustomers().observe(getViewLifecycleOwner(), customers -> {
             if (customers != null) {
                 adapter.submitList(customers);
             }

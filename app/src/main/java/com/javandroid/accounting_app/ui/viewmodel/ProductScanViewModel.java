@@ -95,19 +95,51 @@ public class ProductScanViewModel extends AndroidViewModel {
                 if (product != null) {
                     // Check if there's enough stock
                     if (product.getStock() >= quantity) {
-                        // Product found with stock, add to order on main thread
-                        new Handler(getApplication().getMainLooper()).post(() -> {
-                            currentOrderViewModel.addProduct(product, quantity);
+                        // First decrease the product stock
+                        Log.d(TAG, "Deducting stock for product " + product.getName() +
+                                " (ID: " + product.getProductId() + "): " +
+                                product.getStock() + " -> " + (product.getStock() - quantity));
 
-                            // Notify UI of success
-                            productOperationMessage.setValue(
+                        // Store original stock for tracking
+                        final double originalStock = product.getStock();
+
+                        // Update the product stock in the database
+                        product.setStock(product.getStock() - quantity);
+                        try {
+                            productRepository.update(product);
+
+                            // Product found with stock, add to order on main thread
+                            new Handler(getApplication().getMainLooper()).post(() -> {
+                                currentOrderViewModel.addProduct(product, quantity);
+
+                                Log.d(TAG, "Stock successfully reduced for product " +
+                                        product.getName() + " (ID: " + product.getProductId() +
+                                        "): " + originalStock + " -> " + product.getStock() +
+                                        " (reduced by " + quantity + ")");
+
+                                // Notify UI of success
+                                productOperationMessage.setValue(
+                                        new ProductOperationMessage(
+                                                ProductOperationResult.ADDED_SUCCESSFULLY,
+                                                "Product added: " + product.getName(),
+                                                product));
+                            });
+                        } catch (Exception e) {
+                            Log.e(TAG, "Failed to update product stock: " + e.getMessage(), e);
+
+                            // Notify UI of error
+                            productOperationMessage.postValue(
                                     new ProductOperationMessage(
-                                            ProductOperationResult.ADDED_SUCCESSFULLY,
-                                            "Product added: " + product.getName(),
+                                            ProductOperationResult.ERROR,
+                                            "Error updating inventory: " + e.getMessage(),
                                             product));
-                        });
+                        }
                     } else {
                         // Not enough stock
+                        Log.w(TAG, "Insufficient stock for product " + product.getName() +
+                                " (ID: " + product.getProductId() + "): requested=" +
+                                quantity + ", available=" + product.getStock());
+
                         productOperationMessage.postValue(
                                 new ProductOperationMessage(
                                         ProductOperationResult.OUT_OF_STOCK,
@@ -125,6 +157,7 @@ public class ProductScanViewModel extends AndroidViewModel {
                 }
             } catch (Exception e) {
                 // Handle errors
+                Log.e(TAG, "Error processing barcode: " + barcode, e);
                 productOperationMessage.postValue(
                         new ProductOperationMessage(
                                 ProductOperationResult.ERROR,

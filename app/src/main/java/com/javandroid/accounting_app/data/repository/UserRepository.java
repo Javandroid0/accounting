@@ -17,9 +17,10 @@ public class UserRepository {
 
     private final UserDao userDao;
     private final ExecutorService executor;
+    private final AppDatabase db;
 
     public UserRepository(Context context) {
-        AppDatabase db = AppDatabase.getInstance(context);
+        db = AppDatabase.getInstance(context);
         userDao = db.userDao();
         executor = Executors.newSingleThreadExecutor();
     }
@@ -74,6 +75,13 @@ public class UserRepository {
             result.postValue(user);
         });
         return result;
+    }
+
+    /**
+     * Get all users synchronously
+     */
+    public List<UserEntity> getAllUsersSync() {
+        return db.userDao().getAllUsersSync();
     }
 
     public interface OnUserResultCallback {

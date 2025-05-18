@@ -13,13 +13,13 @@
     <item android:title="Customer Management">
         <menu>
             <item
-                android:id="@+id/nav_delete_customer"
-                android:icon="@android:drawable/ic_menu_delete"
-                android:title="Delete Customer" />
+                android:id="@+id/menu_delete_customer"
+                android:title="Delete Customer"
+                android:icon="@android:drawable/ic_menu_delete" />
             <item
-                android:id="@+id/nav_edit_customer"
-                android:icon="@android:drawable/ic_menu_edit"
-                android:title="Edit Customer" />
+                android:id="@+id/menu_edit_customer"
+                android:title="Edit Customer"
+                android:icon="@android:drawable/ic_menu_edit" />
         </menu>
     </item>
 </menu> 

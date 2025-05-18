@@ -1,6 +1,7 @@
 package com.javandroid.accounting_app.data.repository;
 
 import android.os.Looper;
+import android.util.Log;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
@@ -131,36 +132,74 @@ public class OrderStateRepository {
 
     // Customer order state methods
     public void storeOrderStateForCustomer(long customerId, OrderEntity order, List<OrderItemEntity> items) {
+        if (customerId <= 0) {
+            Log.w("OrderStateRepository", "Cannot store order state for invalid customer ID: " + customerId);
+            return;
+        }
+
         if (order != null) {
             OrderEntity clone = cloneOrder(order);
             customerOrders.put(customerId, clone);
+            Log.d("OrderStateRepository",
+                    "Stored order for customer " + customerId + " with total: " + clone.getTotal());
+        } else {
+            Log.w("OrderStateRepository", "Attempted to store null order for customer " + customerId);
         }
 
         if (items != null) {
             List<OrderItemEntity> itemsCopy = new ArrayList<>();
             for (OrderItemEntity item : items) {
-                OrderItemEntity copy = cloneOrderItem(item);
-                itemsCopy.add(copy);
+                if (item != null) {
+                    OrderItemEntity copy = cloneOrderItem(item);
+                    itemsCopy.add(copy);
+                }
             }
             customerOrderItems.put(customerId, itemsCopy);
+            Log.d("OrderStateRepository", "Stored " + itemsCopy.size() + " items for customer " + customerId);
+        } else {
+            // Store empty list rather than null
+            customerOrderItems.put(customerId, new ArrayList<>());
+            Log.w("OrderStateRepository", "Stored empty item list for customer " + customerId);
         }
     }
 
     public OrderEntity getStoredOrderForCustomer(long customerId) {
+        if (customerId <= 0) {
+            Log.w("OrderStateRepository", "Attempted to get order for invalid customer ID: " + customerId);
+            return null;
+        }
         return customerOrders.get(customerId);
     }
 
     public List<OrderItemEntity> getStoredOrderItemsForCustomer(long customerId) {
-        return customerOrderItems.get(customerId);
+        if (customerId <= 0) {
+            Log.w("OrderStateRepository", "Attempted to get items for invalid customer ID: " + customerId);
+            return new ArrayList<>(); // Return empty list instead of null
+        }
+
+        List<OrderItemEntity> items = customerOrderItems.get(customerId);
+        if (items == null) {
+            return new ArrayList<>(); // Return empty list instead of null
+        }
+        return items;
     }
 
     public boolean hasStoredOrderForCustomer(long customerId) {
+        if (customerId <= 0) {
+            return false;
+        }
         return customerOrders.containsKey(customerId);
     }
 
     public void clearStoredOrderForCustomer(long customerId) {
+        if (customerId <= 0) {
+            Log.w("OrderStateRepository", "Attempted to clear order for invalid customer ID: " + customerId);
+            return;
+        }
+
         customerOrders.remove(customerId);
         customerOrderItems.remove(customerId);
+        Log.d("OrderStateRepository", "Cleared stored order for customer " + customerId);
     }
 
     public void clearAllStoredOrders() {

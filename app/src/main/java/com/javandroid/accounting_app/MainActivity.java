@@ -24,6 +24,8 @@ import com.javandroid.accounting_app.data.model.CustomerEntity;
 import com.javandroid.accounting_app.data.model.UserEntity;
 import com.javandroid.accounting_app.ui.adapter.CustomerDrawerAdapter;
 import com.javandroid.accounting_app.ui.adapter.UserDrawerAdapter;
+import com.javandroid.accounting_app.ui.fragment.CustomerSelectionDialogFragment;
+import com.javandroid.accounting_app.ui.fragment.UserSelectionDialogFragment;
 import com.javandroid.accounting_app.ui.viewmodel.CustomerViewModel;
 import com.javandroid.accounting_app.ui.viewmodel.UserViewModel;
 import com.javandroid.accounting_app.ui.viewmodel.CustomerOrderStateViewModel;
@@ -130,10 +132,14 @@ public class MainActivity extends AppCompatActivity
             // Navigate to add customer screen
             Navigation.findNavController(this, R.id.nav_host_fragment)
                     .navigate(R.id.action_global_addCustomerFragment);
-        } else if (id == R.id.nav_delete_customer) {
+        } else if (id == R.id.menu_delete_customer) {
             Toast.makeText(this, "Select a customer to delete", Toast.LENGTH_SHORT).show();
-        } else if (id == R.id.nav_edit_customer) {
+            CustomerSelectionDialogFragment.newInstance(CustomerSelectionDialogFragment.MODE_DELETE)
+                    .show(getSupportFragmentManager(), "CustomerDeleteDialog");
+        } else if (id == R.id.menu_edit_customer) {
             Toast.makeText(this, "Select a customer to edit", Toast.LENGTH_SHORT).show();
+            CustomerSelectionDialogFragment.newInstance(CustomerSelectionDialogFragment.MODE_EDIT)
+                    .show(getSupportFragmentManager(), "CustomerEditDialog");
         }
         // Handle User drawer menu items
         else if (id == R.id.nav_all_users) {
@@ -142,10 +148,20 @@ public class MainActivity extends AppCompatActivity
             // Navigate to add user screen
             Navigation.findNavController(this, R.id.nav_host_fragment)
                     .navigate(R.id.action_global_addUserFragment);
-        } else if (id == R.id.nav_delete_user) {
+        } else if (id == R.id.nav_user_profit) {
+            // Navigate to user profit summary
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.nav_host_fragment, new com.javandroid.accounting_app.ui.fragment.UserProfitFragment())
+                    .addToBackStack(null)
+                    .commit();
+        } else if (id == R.id.menu_delete_user) {
             Toast.makeText(this, "Select a user to delete", Toast.LENGTH_SHORT).show();
-        } else if (id == R.id.nav_edit_user) {
+            UserSelectionDialogFragment.newInstance(UserSelectionDialogFragment.MODE_DELETE)
+                    .show(getSupportFragmentManager(), "UserDeleteDialog");
+        } else if (id == R.id.menu_edit_user) {
             Toast.makeText(this, "Select a user to edit", Toast.LENGTH_SHORT).show();
+            UserSelectionDialogFragment.newInstance(UserSelectionDialogFragment.MODE_EDIT)
+                    .show(getSupportFragmentManager(), "UserEditDialog");
         }
 
         // Close the drawer
@@ -161,7 +177,7 @@ public class MainActivity extends AppCompatActivity
 
         // Also update the order's customer ID
         if (customer != null) {
-            customerOrderStateViewModel.setCustomerId(customer.getCustomerId());
+            customerOrderStateViewModel.setCustomerId(customer.getCustomerId(), false);
         }
 
         Toast.makeText(this, "Selected customer: " + customer.getName(), Toast.LENGTH_SHORT).show();
