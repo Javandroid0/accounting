@@ -15,6 +15,7 @@ import com.javandroid.accounting_app.data.model.OrderEntity;
 import com.javandroid.accounting_app.data.model.OrderItemEntity;
 import com.javandroid.accounting_app.data.repository.OrderRepository;
 import com.javandroid.accounting_app.data.repository.OrderStateRepository;
+import com.javandroid.accounting_app.data.repository.OrderSessionManager;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -30,7 +31,8 @@ public class OrderEditViewModel extends AndroidViewModel {
     private static final String TAG = "OrderEditViewModel";
 
     private final OrderRepository orderRepository;
-    private final OrderStateRepository stateRepository;
+    private final OrderSessionManager sessionManager;
+    private OrderStateRepository stateRepository;
     private final CurrentOrderViewModel currentOrderViewModel;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
@@ -40,9 +42,20 @@ public class OrderEditViewModel extends AndroidViewModel {
     public OrderEditViewModel(@NonNull Application application) {
         super(application);
         orderRepository = new OrderRepository(application);
-        stateRepository = OrderStateRepository.getInstance();
+        sessionManager = OrderSessionManager.getInstance();
+        stateRepository = sessionManager.getCurrentRepository();
         currentOrderViewModel = new ViewModelProvider.AndroidViewModelFactory(application)
                 .create(CurrentOrderViewModel.class);
+    }
+
+    /**
+     * Gets the current state repository from the session manager
+     * This ensures we're always using the most up-to-date repository
+     */
+    private OrderStateRepository getStateRepository() {
+        // Update the reference to the current repository
+        stateRepository = sessionManager.getCurrentRepository();
+        return stateRepository;
     }
 
     /**
@@ -50,7 +63,7 @@ public class OrderEditViewModel extends AndroidViewModel {
      */
     public void setEditingOrder(OrderEntity order) {
         Log.d(TAG, "Setting order for editing: ID=" + order.getOrderId());
-        stateRepository.setCurrentOrder(order);
+        getStateRepository().setCurrentOrder(order);
 
         // Automatically load the order items for this order
         if (order.getOrderId() > 0) {
@@ -60,11 +73,11 @@ public class OrderEditViewModel extends AndroidViewModel {
                 public void onChanged(List<OrderItemEntity> orderItems) {
                     if (orderItems != null) {
                         Log.d(TAG, "Loaded " + orderItems.size() + " items for order ID=" + order.getOrderId());
-                        stateRepository.setCurrentOrderItems(orderItems);
+                        getStateRepository().setCurrentOrderItems(orderItems);
                     } else {
                         Log.w(TAG, "No items found for order ID=" + order.getOrderId());
                         // Set empty list instead of null
-                        stateRepository.setCurrentOrderItems(new ArrayList<>());
+                        getStateRepository().setCurrentOrderItems(new ArrayList<>());
                     }
                     // Remove observer after use to prevent memory leaks
                     orderRepository.getOrderItems(order.getOrderId()).removeObserver(this);
@@ -80,7 +93,7 @@ public class OrderEditViewModel extends AndroidViewModel {
      * Cancel editing and reload the original order from the database
      */
     public void cancelOrderEditing() {
-        OrderEntity currentOrderValue = stateRepository.getCurrentOrderValue();
+        OrderEntity currentOrderValue = getStateRepository().getCurrentOrderValue();
         if (currentOrderValue != null && currentOrderValue.getOrderId() > 0) {
             // This is an existing order, reload it from database to discard changes
             long orderId = currentOrderValue.getOrderId();
@@ -93,7 +106,7 @@ public class OrderEditViewModel extends AndroidViewModel {
                     if (order != null) {
                         Log.d(TAG, "Reloaded order from DB: " + order.getOrderId() +
                                 ", total: " + order.getTotal());
-                        stateRepository.setCurrentOrder(order);
+                        getStateRepository().setCurrentOrder(order);
                         // Remove observer after use to prevent memory leaks
                         orderRepository.getOrderById(orderId).removeObserver(this);
 
@@ -103,7 +116,7 @@ public class OrderEditViewModel extends AndroidViewModel {
                             public void onChanged(List<OrderItemEntity> items) {
                                 if (items != null) {
                                     Log.d(TAG, "Reloaded " + items.size() + " items for order ID: " + orderId);
-                                    stateRepository.setCurrentOrderItems(items);
+                                    getStateRepository().setCurrentOrderItems(items);
                                 } else {
                                     Log.d(TAG, "No items loaded for order ID: " + orderId);
                                 }
@@ -129,15 +142,16 @@ public class OrderEditViewModel extends AndroidViewModel {
         }
 
         // Clear ALL cached order data
-        stateRepository.clearAllStoredOrders();
+        getStateRepository().clearAllStoredOrders();
     }
 
     /**
      * Save changes to an existing order
      */
     public void saveOrderChanges() {
-        OrderEntity order = stateRepository.getCurrentOrderValue();
-        List<OrderItemEntity> items = stateRepository.getCurrentOrderItemsValue();
+        OrderStateRepository repo = getStateRepository();
+        OrderEntity order = repo.getCurrentOrderValue();
+        List<OrderItemEntity> items = repo.getCurrentOrderItemsValue();
 
         if (order != null && order.getOrderId() > 0 && items != null) {
             Log.d(TAG, "Saving changes for order ID: " + order.getOrderId() +

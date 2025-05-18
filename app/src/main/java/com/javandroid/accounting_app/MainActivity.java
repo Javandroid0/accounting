@@ -26,7 +26,7 @@ import com.javandroid.accounting_app.ui.adapter.CustomerDrawerAdapter;
 import com.javandroid.accounting_app.ui.adapter.UserDrawerAdapter;
 import com.javandroid.accounting_app.ui.viewmodel.CustomerViewModel;
 import com.javandroid.accounting_app.ui.viewmodel.UserViewModel;
-import com.javandroid.accounting_app.ui.viewmodel.OrderViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.CustomerOrderStateViewModel;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener,
@@ -38,7 +38,7 @@ public class MainActivity extends AppCompatActivity
     private NavigationView navViewRight;
     private UserViewModel userViewModel;
     private CustomerViewModel customerViewModel;
-    private OrderViewModel orderViewModel;
+    private CustomerOrderStateViewModel customerOrderStateViewModel;
     private CustomerDrawerAdapter customerAdapter;
     private UserDrawerAdapter userAdapter;
 
@@ -50,7 +50,7 @@ public class MainActivity extends AppCompatActivity
         // Initialize ViewModels
         userViewModel = new ViewModelProvider(this).get(UserViewModel.class);
         customerViewModel = new ViewModelProvider(this).get(CustomerViewModel.class);
-        orderViewModel = new ViewModelProvider(this).get(OrderViewModel.class);
+        customerOrderStateViewModel = new ViewModelProvider(this).get(CustomerOrderStateViewModel.class);
 
         // Setup Toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -159,9 +159,9 @@ public class MainActivity extends AppCompatActivity
         // Set selected customer in ViewModel to be used in orders
         customerViewModel.setSelectedCustomer(customer);
 
-        // Also update the order's customer ID and clear items
+        // Also update the order's customer ID
         if (customer != null) {
-            orderViewModel.setCustomerId(customer.getCustomerId());
+            customerOrderStateViewModel.setCustomerId(customer.getCustomerId());
         }
 
         Toast.makeText(this, "Selected customer: " + customer.getName(), Toast.LENGTH_SHORT).show();
@@ -173,6 +173,12 @@ public class MainActivity extends AppCompatActivity
     public void onUserClick(UserEntity user) {
         // Set selected user in ViewModel to be used in orders
         userViewModel.setCurrentUser(user);
+
+        // Also update the order's user ID
+        if (user != null) {
+            customerOrderStateViewModel.setCurrentUserId(user.getUserId());
+        }
+
         Toast.makeText(this, "Selected user: " + user.getUsername(), Toast.LENGTH_SHORT).show();
         drawerLayout.closeDrawer(GravityCompat.END);
     }

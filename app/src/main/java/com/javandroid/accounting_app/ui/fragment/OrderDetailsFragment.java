@@ -21,7 +21,9 @@ import com.javandroid.accounting_app.R;
 import com.javandroid.accounting_app.data.model.OrderEntity;
 import com.javandroid.accounting_app.data.model.OrderItemEntity;
 import com.javandroid.accounting_app.ui.adapter.OrderEditorAdapter;
-import com.javandroid.accounting_app.ui.viewmodel.OrderViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.SavedOrdersViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.OrderEditViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.CurrentOrderViewModel;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -33,7 +35,9 @@ import java.util.List;
 public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter.OnOrderItemChangeListener {
 
     private static final String TAG = "OrderDetailsFragment";
-    private OrderViewModel orderViewModel;
+    private SavedOrdersViewModel savedOrdersViewModel;
+    private OrderEditViewModel orderEditViewModel;
+    private CurrentOrderViewModel currentOrderViewModel;
     private OrderEditorAdapter adapter;
     private RecyclerView recyclerView;
     private TextView tvOrderId;
@@ -89,8 +93,10 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
     }
 
     private void setupViewModel() {
-        orderViewModel = new ViewModelProvider(requireActivity()).get(OrderViewModel.class);
-        Log.d(TAG, "DEBUG: ViewModel setup complete");
+        savedOrdersViewModel = new ViewModelProvider(requireActivity()).get(SavedOrdersViewModel.class);
+        orderEditViewModel = new ViewModelProvider(requireActivity()).get(OrderEditViewModel.class);
+        currentOrderViewModel = new ViewModelProvider(requireActivity()).get(CurrentOrderViewModel.class);
+        Log.d(TAG, "DEBUG: ViewModels setup complete");
     }
 
     private void setupRecyclerView() {
@@ -110,7 +116,7 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
         Log.d(TAG, "DEBUG: Loading data for order ID: " + orderId);
 
         // Get the order from database and set it for editing (only once)
-        orderViewModel.getOrderById(orderId).observe(getViewLifecycleOwner(), order -> {
+        savedOrdersViewModel.getOrderById(orderId).observe(getViewLifecycleOwner(), order -> {
             if (order != null) {
                 Log.d(TAG, "DEBUG: Order loaded - ID: " + order.getOrderId() +
                         ", date: " + order.getDate() +
@@ -118,13 +124,13 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
                         ", customer: " + order.getCustomerId());
 
                 // Set as current editing order (this will also load items)
-                orderViewModel.setEditingOrder(order);
+                orderEditViewModel.setEditingOrder(order);
 
                 // Observe the current order for UI updates
-                orderViewModel.getCurrentOrder().observe(getViewLifecycleOwner(), this::updateOrderDetails);
+                currentOrderViewModel.getCurrentOrder().observe(getViewLifecycleOwner(), this::updateOrderDetails);
 
                 // Observe the current order items for the adapter
-                orderViewModel.getCurrentOrderItems().observe(getViewLifecycleOwner(), items -> {
+                currentOrderViewModel.getCurrentOrderItems().observe(getViewLifecycleOwner(), items -> {
                     if (items != null) {
                         Log.d(TAG, "DEBUG: Items loaded - count: " + items.size() + " for order ID: " + orderId);
                         // Log each item
@@ -163,15 +169,15 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
 
         if (hasChanges) {
             // Dump current state before saving
-            OrderEntity order = orderViewModel.getCurrentOrder().getValue();
-            List<OrderItemEntity> items = orderViewModel.getCurrentOrderItems().getValue();
+            OrderEntity order = currentOrderViewModel.getCurrentOrder().getValue();
+            List<OrderItemEntity> items = currentOrderViewModel.getCurrentOrderItems().getValue();
 
             Log.d(TAG, "DEBUG: About to save - order: " + (order != null ? order.getOrderId() : "null") +
                     ", total: " + (order != null ? order.getTotal() : "null") +
                     ", items: " + (items != null ? items.size() : 0));
 
-            // Use the new method to save all changes explicitly
-            orderViewModel.saveOrderChanges();
+            // Use the OrderEditViewModel to save changes
+            orderEditViewModel.saveOrderChanges();
             Toast.makeText(requireContext(), "Changes saved", Toast.LENGTH_SHORT).show();
 
             // Clean up observers after saving changes, just like we do when canceling
@@ -188,7 +194,7 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
     private void cancelEditing() {
         Log.d(TAG, "DEBUG: Cancel button clicked, hasChanges: " + hasChanges);
 
-        OrderEntity order = orderViewModel.getCurrentOrder().getValue();
+        OrderEntity order = currentOrderViewModel.getCurrentOrder().getValue();
 
         // Ask user for confirmation before deleting
         new androidx.appcompat.app.AlertDialog.Builder(requireContext())
@@ -197,11 +203,11 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
                 .setPositiveButton("Yes", (dialog, which) -> {
                     if (order != null && order.getOrderId() > 0) {
                         // Delete the order from the database
-                        orderViewModel.deleteOrderAndItems(order.getOrderId());
+                        savedOrdersViewModel.deleteOrderAndItems(order.getOrderId());
                         Toast.makeText(requireContext(), "Order deleted", Toast.LENGTH_SHORT).show();
                     } else {
                         // If it's a new order, just discard changes
-                        orderViewModel.cancelOrderEditing();
+                        orderEditViewModel.cancelOrderEditing();
                         Toast.makeText(requireContext(), "Changes discarded", Toast.LENGTH_SHORT).show();
                     }
 
@@ -213,7 +219,7 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
                 })
                 .setNegativeButton("No", (dialog, which) -> {
                     // Just discard changes without deleting
-                    orderViewModel.cancelOrderEditing();
+                    orderEditViewModel.cancelOrderEditing();
                     Toast.makeText(requireContext(), "Changes cancelled", Toast.LENGTH_SHORT).show();
 
                     // Aggressively clean up all references
@@ -222,82 +228,55 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
                     // Return to the previous screen
                     Navigation.findNavController(requireView()).navigateUp();
                 })
-                .setCancelable(true)
+                .setNeutralButton("Cancel", (dialog, which) -> {
+                    // Do nothing, just close the dialog
+                })
                 .show();
     }
 
     @Override
     public void onQuantityChanged(OrderItemEntity item, double newQuantity) {
-        // Update the quantity but don't save to database yet
-        Log.d(TAG, "DEBUG: Quantity changed for item: " + item.getProductName() +
-                ", from: " + item.getQuantity() + " to: " + newQuantity);
-        orderViewModel.updateQuantity(item, newQuantity);
+        Log.d(TAG, "DEBUG: Item quantity changed - " + item.getProductName() +
+                " from " + item.getQuantity() + " to " + newQuantity);
+        currentOrderViewModel.updateQuantity(item, newQuantity);
         hasChanges = true;
     }
 
     @Override
     public void onPriceChanged(OrderItemEntity item, double newPrice) {
-        // Update the price in memory only, don't save to database yet
-        Log.d(TAG, "DEBUG: Price changed for item: " + item.getProductName() +
-                ", from: " + item.getSellPrice() + " to: " + newPrice);
-        item.setSellPrice(newPrice);
-        // Do not call updateOrderItem directly anymore
-        hasChanges = true;
-
-        // Update UI to reflect the price change
-        OrderEntity order = orderViewModel.getCurrentOrder().getValue();
-        if (order != null) {
-            orderViewModel.updateOrderTotal();
-            NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault());
-            tvOrderTotal.setText(currencyFormat.format(order.getTotal()));
-        }
+        // We don't allow direct price changes currently
     }
 
     @Override
     public void onDelete(OrderItemEntity item) {
-        // We will not immediately remove from database
-        // Only mark it as removed in the UI
-        Log.d(TAG, "DEBUG: Item deleted: " + item.getProductName() +
-                ", quantity: " + item.getQuantity() +
-                ", price: " + item.getSellPrice());
-        orderViewModel.removeItem(item);
-        Toast.makeText(requireContext(), "Item removed", Toast.LENGTH_SHORT).show();
+        Log.d(TAG, "DEBUG: Item deleted - " + item.getProductName());
+        currentOrderViewModel.removeItem(item);
         hasChanges = true;
 
-        // Update UI to reflect the total change
-        OrderEntity order = orderViewModel.getCurrentOrder().getValue();
-        if (order != null) {
-            NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault());
-            tvOrderTotal.setText(currencyFormat.format(order.getTotal()));
+        // Check if order is now empty
+        List<OrderItemEntity> currentItems = currentOrderViewModel.getCurrentOrderItems().getValue();
+        if (currentItems == null || currentItems.isEmpty()) {
+            Log.d(TAG, "DEBUG: Order is now empty after deleting item. Should ask to delete entire order.");
+            Toast.makeText(requireContext(), "Order is now empty. Consider deleting it.", Toast.LENGTH_SHORT).show();
         }
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        Log.d(TAG, "DEBUG: Fragment stopped for order ID: " + orderId);
-        // Ensure we clean up even if the user navigates away without using buttons
-        clearCurrentOrderData();
+        Log.d(TAG, "DEBUG: Fragment stopped");
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        Log.d(TAG, "DEBUG: Fragment destroyed for order ID: " + orderId);
+        Log.d(TAG, "DEBUG: Fragment destroyed");
     }
 
     private void clearCurrentOrderData() {
-        // Reset the current order to a new empty order using the ViewModel method
-        Log.d(TAG, "DEBUG: Clearing current order data in fragment");
-        orderViewModel.resetCurrentOrder();
-
-        // Clean up the observers for this order
-        orderViewModel.cleanupOrderObservers(orderId);
-
-        // Also reset the adapter to clear any cached items
-        if (adapter != null) {
-            adapter.submitList(null);
-            Log.d(TAG, "DEBUG: Adapter list cleared");
+        if (orderEditViewModel != null && orderId > 0) {
+            // Clean up any observers for this specific order
+            orderEditViewModel.cleanupOrderObservers(orderId);
         }
     }
 }

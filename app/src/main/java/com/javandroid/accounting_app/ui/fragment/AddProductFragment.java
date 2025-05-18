@@ -16,10 +16,12 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.javandroid.accounting_app.R;
 import com.javandroid.accounting_app.data.model.ProductEntity;
 import com.javandroid.accounting_app.ui.viewmodel.ProductViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.ProductScanViewModel;
 
 public class AddProductFragment extends Fragment {
 
     private ProductViewModel productViewModel;
+    private ProductScanViewModel productScanViewModel;
     private TextInputEditText etBarcode;
     private TextInputEditText etProductName;
     private TextInputEditText etBuyPrice;
@@ -30,6 +32,7 @@ public class AddProductFragment extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         productViewModel = new ViewModelProvider(requireActivity()).get(ProductViewModel.class);
+        productScanViewModel = new ViewModelProvider(requireActivity()).get(ProductScanViewModel.class);
     }
 
     @Nullable
@@ -58,6 +61,7 @@ public class AddProductFragment extends Fragment {
 
     private void setupListeners(View view) {
         view.findViewById(R.id.btnAddProduct).setOnClickListener(v -> saveProduct());
+        view.findViewById(R.id.btnCancel).setOnClickListener(v -> cancelAddProduct());
     }
 
     private void handleArguments() {
@@ -83,8 +87,22 @@ public class AddProductFragment extends Fragment {
 
             productViewModel.insert(product);
             Toast.makeText(requireContext(), "Product added successfully", Toast.LENGTH_SHORT).show();
+
+            // Re-enable scanner when returning
+            productScanViewModel.setScannerActive(true);
             Navigation.findNavController(requireView()).navigateUp();
         }
+    }
+
+    /**
+     * Cancel adding a product and return to scanner
+     */
+    private void cancelAddProduct() {
+        // Tell ProductScanViewModel to cancel the add flow
+        productScanViewModel.cancelProductAddFlow();
+
+        // Navigate back
+        Navigation.findNavController(requireView()).navigateUp();
     }
 
     private boolean validateInput(String barcode, String name, String buyPrice, String sellPrice, String stock) {

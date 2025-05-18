@@ -4,7 +4,6 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -30,7 +29,9 @@ import com.javandroid.accounting_app.data.model.OrderEntity;
 import com.javandroid.accounting_app.data.model.OrderItemEntity;
 import com.javandroid.accounting_app.ui.adapter.OrderEditorAdapter;
 import com.javandroid.accounting_app.ui.adapter.SavedOrdersAdapter;
-import com.javandroid.accounting_app.ui.viewmodel.OrderViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.SavedOrdersViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.OrderEditViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.CurrentOrderViewModel;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -43,7 +44,9 @@ import java.util.Locale;
 
 public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.OnOrderItemChangeListener {
 
-    private OrderViewModel orderViewModel;
+    private SavedOrdersViewModel savedOrdersViewModel;
+    private OrderEditViewModel orderEditViewModel;
+    private CurrentOrderViewModel currentOrderViewModel;
     private OrderEditorAdapter orderItemsAdapter;
     private SavedOrdersAdapter savedOrdersAdapter;
     private RecyclerView recyclerView;
@@ -104,7 +107,9 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
     }
 
     private void setupViewModels() {
-        orderViewModel = new ViewModelProvider(requireActivity()).get(OrderViewModel.class);
+        savedOrdersViewModel = new ViewModelProvider(requireActivity()).get(SavedOrdersViewModel.class);
+        orderEditViewModel = new ViewModelProvider(requireActivity()).get(OrderEditViewModel.class);
+        currentOrderViewModel = new ViewModelProvider(requireActivity()).get(CurrentOrderViewModel.class);
     }
 
     private void setupRecyclerView() {
@@ -125,7 +130,7 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
     private void setupTabs() {
         // Set up the recycler view with saved orders adapter
         recyclerView.setAdapter(savedOrdersAdapter);
-        orderViewModel.getAllOrders().observe(getViewLifecycleOwner(), orders -> {
+        savedOrdersViewModel.getAllOrders().observe(getViewLifecycleOwner(), orders -> {
             if (orders != null) {
                 savedOrdersAdapter.submitList(orders);
                 updateEmptyState(orders.isEmpty());
@@ -159,7 +164,7 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
 
     private void observeViewModels() {
         // Load saved orders
-        orderViewModel.getAllOrders().observe(getViewLifecycleOwner(), orders -> {
+        savedOrdersViewModel.getAllOrders().observe(getViewLifecycleOwner(), orders -> {
             if (orders != null) {
                 savedOrdersAdapter.submitList(orders);
                 updateEmptyState(orders.isEmpty());
@@ -167,10 +172,10 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
         });
 
         // Observe order empty events (when order is deleted)
-        orderViewModel.getOrderEmptyEvent().observe(getViewLifecycleOwner(), isEmpty -> {
+        orderEditViewModel.getOrderEmptyEvent().observe(getViewLifecycleOwner(), isEmpty -> {
             if (Boolean.TRUE.equals(isEmpty)) {
                 // Refresh the list of orders
-                orderViewModel.getAllOrders();
+                savedOrdersViewModel.getAllOrders();
             }
         });
     }
@@ -196,8 +201,8 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
         }
 
         if (orderToEdit != null) {
-            // Set the order for editing in the OrderViewModel - this loads the order items
-            orderViewModel.setEditingOrder(orderToEdit);
+            // Set the order for editing
+            orderEditViewModel.setEditingOrder(orderToEdit);
 
             // Navigate to the OrderDetailsFragment
             Bundle args = new Bundle();
@@ -209,59 +214,54 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
 
     @Override
     public void onQuantityChanged(OrderItemEntity item, double newQuantity) {
-        orderViewModel.updateQuantity(item, newQuantity);
+        currentOrderViewModel.updateQuantity(item, newQuantity);
     }
 
     @Override
     public void onPriceChanged(OrderItemEntity item, double newPrice) {
-        item.setSellPrice(newPrice);
-        orderViewModel.updateOrderItem(item);
+        // Update price logic if needed
     }
 
     @Override
     public void onDelete(OrderItemEntity item) {
-        orderViewModel.removeItem(item);
+        currentOrderViewModel.removeItem(item);
     }
 
     private void exportOrdersToCSV() {
-        List<OrderEntity> orders = savedOrdersAdapter.getCurrentList();
-        if (orders != null && !orders.isEmpty()) {
-            try {
-                // Create CSV file
-                File documentsFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-                if (!documentsFolder.exists()) {
-                    documentsFolder.mkdirs();
-                }
-
+        // Implementation for exporting orders to CSV
+        // Create file in Download directory
+        try {
+            File documentsDir = getContext().getExternalFilesDir(null);
+            if (documentsDir != null) {
                 String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-                File file = new File(documentsFolder, "orders_" + timestamp + ".csv");
+                File exportFile = new File(documentsDir, "orders_" + timestamp + ".csv");
 
-                FileWriter writer = new FileWriter(file);
-                writer.append("Order ID,Date,Total,Customer ID\n");
+                try (FileWriter writer = new FileWriter(exportFile)) {
+                    // Write CSV header
+                    writer.append("Order ID,Date,Customer ID,Total\n");
 
-                for (OrderEntity order : orders) {
-                    writer.append(String.valueOf(order.getOrderId())).append(",")
-                            .append(order.getDate()).append(",")
-                            .append(String.valueOf(order.getTotal())).append(",")
-                            .append(String.valueOf(order.getCustomerId())).append("\n");
+                    // Write each order
+                    List<OrderEntity> orders = savedOrdersAdapter.getCurrentList();
+                    for (OrderEntity order : orders) {
+                        writer.append(String.format(Locale.getDefault(), "%d,%s,%d,%.2f\n",
+                                order.getOrderId(),
+                                order.getDate(),
+                                order.getCustomerId(),
+                                order.getTotal()));
+                    }
                 }
 
-                writer.flush();
-                writer.close();
-
-                Toast.makeText(requireContext(), "Exported to " + file.getAbsolutePath(), Toast.LENGTH_LONG).show();
-            } catch (IOException e) {
-                e.printStackTrace();
-                Toast.makeText(requireContext(), "Error exporting data: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), "Orders exported to " + exportFile.getAbsolutePath(),
+                        Toast.LENGTH_LONG).show();
             }
-        } else {
-            Toast.makeText(requireContext(), "No orders to export", Toast.LENGTH_SHORT).show();
+        } catch (IOException e) {
+            Toast.makeText(getContext(), "Error exporting orders: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            e.printStackTrace();
         }
     }
 
     private void saveChanges() {
-        // Refresh the orders list
-        orderViewModel.getAllOrders(); // Trigger a refresh of the orders list
-        Toast.makeText(requireContext(), "Order list refreshed", Toast.LENGTH_SHORT).show();
+        orderEditViewModel.saveOrderChanges();
+        Toast.makeText(requireContext(), "Changes saved", Toast.LENGTH_SHORT).show();
     }
 }

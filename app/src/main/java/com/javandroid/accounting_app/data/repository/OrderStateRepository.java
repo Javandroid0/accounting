@@ -1,5 +1,6 @@
 package com.javandroid.accounting_app.data.repository;
 
+import android.os.Looper;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
@@ -16,12 +17,11 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Singleton repository to coordinate shared state between ViewModels
+ * Repository to manage order state for a single order session
+ * Each order session should have its own repository instance to prevent state
+ * leakage
  */
 public class OrderStateRepository {
-    // Singleton instance
-    private static OrderStateRepository instance;
-
     // Shared state that multiple ViewModels need access to
     private final MutableLiveData<OrderEntity> currentOrder = new MutableLiveData<>();
     private final MutableLiveData<List<OrderItemEntity>> currentOrderItems = new MutableLiveData<>();
@@ -35,20 +35,27 @@ public class OrderStateRepository {
     // Counter for generating temporary unique IDs
     private final AtomicLong tempIdCounter = new AtomicLong(Integer.MAX_VALUE / 2);
 
-    // Private constructor to enforce singleton
-    private OrderStateRepository() {
+    /**
+     * Constructor initializes with an empty order
+     * 
+     * @param userId The current user ID, if known (0 if not yet set)
+     */
+    public OrderStateRepository(long userId) {
         // Initialize with an empty order
         String dateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
-        currentOrder.setValue(new OrderEntity(dateString, 0.0, 0L, 0L));
+        OrderEntity emptyOrder = new OrderEntity(dateString, 0.0, 0L, userId);
+        emptyOrder.setOrderId(0); // Ensure it's a new order
+
+        this.currentUserId = userId;
+        currentOrder.setValue(emptyOrder);
         currentOrderItems.setValue(new ArrayList<>());
     }
 
-    // Get singleton instance
-    public static synchronized OrderStateRepository getInstance() {
-        if (instance == null) {
-            instance = new OrderStateRepository();
-        }
-        return instance;
+    /**
+     * Default constructor without user ID
+     */
+    public OrderStateRepository() {
+        this(0);
     }
 
     // Current order methods
@@ -56,8 +63,16 @@ public class OrderStateRepository {
         return currentOrder;
     }
 
+    /**
+     * Sets the current order - thread-safe method that handles both main and
+     * background threads
+     */
     public void setCurrentOrder(OrderEntity order) {
-        currentOrder.setValue(order);
+        if (isOnMainThread()) {
+            currentOrder.setValue(order);
+        } else {
+            currentOrder.postValue(order);
+        }
     }
 
     public OrderEntity getCurrentOrderValue() {
@@ -69,8 +84,17 @@ public class OrderStateRepository {
         return currentOrderItems;
     }
 
+    /**
+     * Sets the current order items - thread-safe method that handles both main and
+     * background threads
+     */
     public void setCurrentOrderItems(List<OrderItemEntity> items) {
-        currentOrderItems.setValue(new ArrayList<>(items));
+        List<OrderItemEntity> itemsCopy = new ArrayList<>(items);
+        if (isOnMainThread()) {
+            currentOrderItems.setValue(itemsCopy);
+        } else {
+            currentOrderItems.postValue(itemsCopy);
+        }
     }
 
     public List<OrderItemEntity> getCurrentOrderItemsValue() {
@@ -87,7 +111,7 @@ public class OrderStateRepository {
         OrderEntity order = currentOrder.getValue();
         if (order != null) {
             order.setUserId(userId);
-            currentOrder.setValue(order);
+            setCurrentOrder(order);
         }
     }
 
@@ -101,7 +125,7 @@ public class OrderStateRepository {
         OrderEntity order = currentOrder.getValue();
         if (order != null) {
             order.setCustomerId(customerId);
-            currentOrder.setValue(order);
+            setCurrentOrder(order);
         }
     }
 
@@ -149,6 +173,28 @@ public class OrderStateRepository {
         return tempIdCounter.getAndIncrement();
     }
 
+    /**
+     * Reset this repository to a fresh state with the given user ID
+     * 
+     * @param userId The user ID to associate with the new order
+     */
+    public void reset(long userId) {
+        // Create a new empty order
+        String dateString = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date());
+        OrderEntity emptyOrder = new OrderEntity(dateString, 0.0, 0L, userId);
+        emptyOrder.setOrderId(0);
+
+        // Clear and reset state
+        this.currentUserId = userId;
+        this.currentCustomerId = 0;
+        customerOrders.clear();
+        customerOrderItems.clear();
+
+        // Update LiveData values
+        setCurrentOrder(emptyOrder);
+        setCurrentOrderItems(new ArrayList<>());
+    }
+
     // Helper methods
     private OrderEntity cloneOrder(OrderEntity order) {
         OrderEntity clone = new OrderEntity(
@@ -169,5 +215,12 @@ public class OrderStateRepository {
         copy.setSellPrice(item.getSellPrice());
         copy.setQuantity(item.getQuantity());
         return copy;
+    }
+
+    /**
+     * Checks if the current thread is the main thread
+     */
+    private boolean isOnMainThread() {
+        return Looper.myLooper() == Looper.getMainLooper();
     }
 }

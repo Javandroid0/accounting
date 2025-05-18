@@ -11,6 +11,7 @@ import com.javandroid.accounting_app.data.model.OrderEntity;
 import com.javandroid.accounting_app.data.model.OrderItemEntity;
 import com.javandroid.accounting_app.data.repository.OrderRepository;
 import com.javandroid.accounting_app.data.repository.OrderStateRepository;
+import com.javandroid.accounting_app.data.repository.OrderSessionManager;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -23,13 +24,25 @@ public class SavedOrdersViewModel extends AndroidViewModel {
     private static final String TAG = "SavedOrdersViewModel";
 
     private final OrderRepository orderRepository;
-    private final OrderStateRepository stateRepository;
+    private final OrderSessionManager sessionManager;
+    private OrderStateRepository stateRepository;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     public SavedOrdersViewModel(@NonNull Application application) {
         super(application);
         orderRepository = new OrderRepository(application);
-        stateRepository = OrderStateRepository.getInstance();
+        sessionManager = OrderSessionManager.getInstance();
+        stateRepository = sessionManager.getCurrentRepository();
+    }
+
+    /**
+     * Gets the current state repository from the session manager
+     * This ensures we're always using the most up-to-date repository
+     */
+    private OrderStateRepository getStateRepository() {
+        // Update the reference to the current repository
+        stateRepository = sessionManager.getCurrentRepository();
+        return stateRepository;
     }
 
     /**

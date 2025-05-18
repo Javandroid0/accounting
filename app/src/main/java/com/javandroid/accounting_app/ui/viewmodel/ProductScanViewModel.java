@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.javandroid.accounting_app.data.model.ProductEntity;
 import com.javandroid.accounting_app.data.repository.OrderStateRepository;
+import com.javandroid.accounting_app.data.repository.OrderSessionManager;
 import com.javandroid.accounting_app.data.repository.ProductRepository;
 
 import java.util.concurrent.ExecutorService;
@@ -30,6 +31,9 @@ public class ProductScanViewModel extends AndroidViewModel {
 
     // Event to signal when product is not found
     private final MutableLiveData<String> productNotFoundEvent = new MutableLiveData<>();
+
+    // Scanner active state - used to control the barcode scanner's active state
+    private final MutableLiveData<Boolean> scannerActiveState = new MutableLiveData<>(true);
 
     // Event for product operation results
     private final MutableLiveData<ProductOperationMessage> productOperationMessage = new MutableLiveData<>();
@@ -70,7 +74,7 @@ public class ProductScanViewModel extends AndroidViewModel {
     public ProductScanViewModel(@NonNull Application application) {
         super(application);
         productRepository = new ProductRepository(application);
-        stateRepository = OrderStateRepository.getInstance();
+        stateRepository = OrderSessionManager.getInstance().getCurrentRepository();
         currentOrderViewModel = new ViewModelProvider.AndroidViewModelFactory(application)
                 .create(CurrentOrderViewModel.class);
     }
@@ -128,6 +132,33 @@ public class ProductScanViewModel extends AndroidViewModel {
                                 null));
             }
         });
+    }
+
+    /**
+     * Cancel the product add flow and return to scanning
+     * Called when user chooses not to add a product that was not found
+     */
+    public void cancelProductAddFlow() {
+        Log.d(TAG, "Product add flow canceled by user");
+        // Clear any related UI state
+        productNotFoundEvent.postValue(null);
+
+        // Return to scanner or previous screen by activating the scanner
+        scannerActiveState.postValue(true);
+    }
+
+    /**
+     * Get the scanner active state LiveData
+     */
+    public LiveData<Boolean> getScannerActiveState() {
+        return scannerActiveState;
+    }
+
+    /**
+     * Set the scanner active state
+     */
+    public void setScannerActive(boolean active) {
+        scannerActiveState.postValue(active);
     }
 
     /**

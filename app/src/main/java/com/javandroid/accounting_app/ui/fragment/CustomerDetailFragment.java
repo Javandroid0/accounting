@@ -19,12 +19,14 @@ import com.javandroid.accounting_app.data.model.CustomerEntity;
 import com.javandroid.accounting_app.data.model.OrderEntity;
 import com.javandroid.accounting_app.ui.adapter.OrderListAdapter;
 import com.javandroid.accounting_app.ui.viewmodel.CustomerViewModel;
-import com.javandroid.accounting_app.ui.viewmodel.OrderViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.SavedOrdersViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.OrderEditViewModel;
 
 public class CustomerDetailFragment extends Fragment implements OrderListAdapter.OrderClickListener {
 
     private CustomerViewModel customerViewModel;
-    private OrderViewModel orderViewModel;
+    private SavedOrdersViewModel savedOrdersViewModel;
+    private OrderEditViewModel orderEditViewModel;
     private OrderListAdapter adapter;
     private TextView tvCustomerName;
     private RecyclerView recyclerViewOrders;
@@ -33,7 +35,8 @@ public class CustomerDetailFragment extends Fragment implements OrderListAdapter
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         customerViewModel = new ViewModelProvider(requireActivity()).get(CustomerViewModel.class);
-        orderViewModel = new ViewModelProvider(requireActivity()).get(OrderViewModel.class);
+        savedOrdersViewModel = new ViewModelProvider(requireActivity()).get(SavedOrdersViewModel.class);
+        orderEditViewModel = new ViewModelProvider(requireActivity()).get(OrderEditViewModel.class);
     }
 
     @Nullable
@@ -64,7 +67,7 @@ public class CustomerDetailFragment extends Fragment implements OrderListAdapter
     }
 
     private void loadCustomerOrders(CustomerEntity customer) {
-        orderViewModel.getOrdersByCustomerId(customer.getCustomerId())
+        savedOrdersViewModel.getOrdersByCustomerId(customer.getCustomerId())
                 .observe(getViewLifecycleOwner(), orders -> {
                     if (orders != null) {
                         adapter.submitList(orders);
@@ -74,19 +77,11 @@ public class CustomerDetailFragment extends Fragment implements OrderListAdapter
 
     @Override
     public void onOrderClick(OrderEntity order) {
-        // Set the order for editing in the OrderViewModel
-        orderViewModel.setEditingOrder(order);
+        // Set the order for editing using OrderEditViewModel
+        orderEditViewModel.setEditingOrder(order);
 
-        // Load the order items
-        orderViewModel.getOrderItems(order.getOrderId()).observe(getViewLifecycleOwner(), items -> {
-            if (items != null) {
-                // Replace the current order items with the loaded items
-                orderViewModel.replaceCurrentOrderItems(items);
-
-                // Navigate to OrderEditorFragment
-                Navigation.findNavController(requireView()).navigate(
-                        R.id.action_customerDetailFragment_to_orderEditorFragment);
-            }
-        });
+        // Navigate to the order editor fragment
+        Navigation.findNavController(requireView()).navigate(
+                R.id.action_customerDetailFragment_to_orderEditorFragment);
     }
 }
