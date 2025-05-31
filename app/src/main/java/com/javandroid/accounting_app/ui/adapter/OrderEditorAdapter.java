@@ -4,6 +4,7 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
@@ -16,216 +17,153 @@ import com.javandroid.accounting_app.databinding.ItemOrderEditorBinding;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
-public class OrderEditorAdapter extends ListAdapter<OrderItemEntity, RecyclerView.ViewHolder> {
+public class OrderEditorAdapter extends ListAdapter<OrderItemEntity, OrderEditorAdapter.OrderItemViewHolder> {
 
-    private final OnOrderItemChangeListener listener;
-    private List<OrderItemEntity> originalList;
-    private List<OrderItemEntity> filteredList;
-    private boolean isBinding = false;
+    private final OrderItemInteractionListener listener; // Changed to common interface
+    private boolean isEditable = false;
     private static final String TAG = "OrderEditorAdapter";
 
     private static final DiffUtil.ItemCallback<OrderItemEntity> DIFF_CALLBACK = new DiffUtil.ItemCallback<OrderItemEntity>() {
         @Override
         public boolean areItemsTheSame(@NonNull OrderItemEntity oldItem, @NonNull OrderItemEntity newItem) {
-            // Always use the unique itemId for identity comparison
             return oldItem.getItemId() == newItem.getItemId();
         }
 
         @Override
         public boolean areContentsTheSame(@NonNull OrderItemEntity oldItem, @NonNull OrderItemEntity newItem) {
-            // Compare all relevant fields that would require a UI update
             return oldItem.getQuantity() == newItem.getQuantity() &&
                     oldItem.getSellPrice() == newItem.getSellPrice() &&
                     oldItem.getProductName().equals(newItem.getProductName());
         }
-
-        @Override
-        public Object getChangePayload(@NonNull OrderItemEntity oldItem, @NonNull OrderItemEntity newItem) {
-            // Just log the payload for debugging
-            Log.d(TAG, "getChangePayload called for: " + oldItem.getProductName() +
-                    " (Old Qty=" + oldItem.getQuantity() + ", New Qty=" + newItem.getQuantity() + ")");
-            return super.getChangePayload(oldItem, newItem);
-        }
     };
 
-    public OrderEditorAdapter(OnOrderItemChangeListener listener) {
+    public OrderEditorAdapter(OrderItemInteractionListener listener) { // Changed to common interface
         super(DIFF_CALLBACK);
         this.listener = listener;
-        this.originalList = new ArrayList<>();
-//        this.filteredList = new ArrayList<>();
     }
 
-    @Override
-    public void submitList(List<OrderItemEntity> list) {
-        if (list != null) {
-            originalList = new ArrayList<>(list);
-            super.submitList(new ArrayList<>(list));
-        } else {
-            originalList = new ArrayList<>();
-            super.submitList(null);
+    public void setEditable(boolean editable) {
+        if (this.isEditable != editable) {
+            this.isEditable = editable;
+            notifyDataSetChanged();
+            Log.d(TAG, "Adapter edit mode set to: " + this.isEditable);
         }
     }
-
-//    public void filter(String query) {
-//        if (query == null || query.isEmpty()) {
-//            submitList(originalList);
-//            return;
-//        }
-//
-//        filteredList = new ArrayList<>();
-//        String lowerCaseQuery = query.toLowerCase().trim();
-//
-//        for (OrderItemEntity item : originalList) {
-//            if (item.getProductName().toLowerCase().contains(lowerCaseQuery) ||
-//                    item.getBarcode().toLowerCase().contains(lowerCaseQuery)) {
-//                filteredList.add(item);
-//            }
-//        }
-//        submitList(filteredList);
-//    }
 
     @NonNull
     @Override
-    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public OrderItemViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         ItemOrderEditorBinding binding = ItemOrderEditorBinding.inflate(
                 LayoutInflater.from(parent.getContext()), parent, false);
-        return new OrderItemViewHolder(binding);
+        // Pass the listener and a way to get the current editable state
+        return new OrderItemViewHolder(binding, listener, () -> isEditable);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull OrderItemViewHolder holder, int position) {
         OrderItemEntity item = getItem(position);
-        ((OrderItemViewHolder) holder).bind(item);
+        holder.bind(item);
     }
 
-    public interface OnOrderItemChangeListener {
-        void onQuantityChanged(OrderItemEntity item, double newQuantity);
-
-        void onPriceChanged(OrderItemEntity item, double newPrice);
-
-        void onDelete(OrderItemEntity item);
+    // Kept IsEditableProvider internal as it's closely tied to this adapter's functionality
+    interface IsEditableProvider {
+        boolean isEditable();
     }
 
-    // Inner class that uses ViewBinding instead of directly extending
-    // RecyclerView.ViewHolder
-    private class OrderItemViewHolder extends RecyclerView.ViewHolder {
+    static class OrderItemViewHolder extends RecyclerView.ViewHolder {
         private final ItemOrderEditorBinding binding;
+        private final OrderItemInteractionListener listener; // Changed to common interface
+        private final IsEditableProvider isEditableProvider;
         private OrderItemEntity currentItem;
         private TextWatcher quantityWatcher;
         private TextWatcher priceWatcher;
+        private boolean isCurrentlyBindingVH = false;
 
-        public OrderItemViewHolder(ItemOrderEditorBinding binding) {
+        OrderItemViewHolder(ItemOrderEditorBinding binding, OrderItemInteractionListener listener, IsEditableProvider isEditableProvider) {
             super(binding.getRoot());
             this.binding = binding;
-            setupListeners();
+            this.listener = listener;
+            this.isEditableProvider = isEditableProvider;
+            setupStaticListeners();
         }
 
-        private void setupListeners() {
-            // Quantity changes
-            // binding.quantityEdit.setOnFocusChangeListener((v, hasFocus) -> {
-            // if (hasFocus) {
-            // binding.quantityEdit.selectAll();
-            // }
-            // });
-
-            // Button listeners
+        private void setupStaticListeners() {
             binding.decreaseButton.setOnClickListener(v -> {
-                if (currentItem != null) {
+                if (currentItem != null && isEditableProvider.isEditable()) {
                     if (currentItem.getQuantity() <= 1) {
                         listener.onDelete(currentItem);
                     } else {
                         double newQuantity = currentItem.getQuantity() - 1;
-                        isBinding = true;
-
-                        // Format quantity as integer if it's a whole number
-                        if (newQuantity == Math.floor(newQuantity)) {
-                            binding.quantityEdit.setText(String.format("%.0f", newQuantity));
-                        } else {
-                            binding.quantityEdit.setText(String.valueOf(newQuantity));
-                        }
-
-                        isBinding = false;
+                        isCurrentlyBindingVH = true;
+                        binding.quantityEdit.setText(String.format(Locale.US, "%.0f", newQuantity));
+                        updateDecreaseButtonAppearanceLocal(newQuantity);
+                        isCurrentlyBindingVH = false;
                         listener.onQuantityChanged(currentItem, newQuantity);
-                        updateDecreaseButtonAppearance(newQuantity);
                     }
                 }
             });
 
             binding.increaseButton.setOnClickListener(v -> {
-                if (currentItem != null) {
+                if (currentItem != null && isEditableProvider.isEditable()) {
                     double newQuantity = currentItem.getQuantity() + 1;
-                    isBinding = true;
-
-                    // Format quantity as integer if it's a whole number
-                    if (newQuantity == Math.floor(newQuantity)) {
-                        binding.quantityEdit.setText(String.format("%.0f", newQuantity));
-                    } else {
-                        binding.quantityEdit.setText(String.valueOf(newQuantity));
-                    }
-
-                    isBinding = false;
+                    isCurrentlyBindingVH = true;
+                    binding.quantityEdit.setText(String.format(Locale.US, "%.0f", newQuantity));
+                    updateDecreaseButtonAppearanceLocal(newQuantity);
+                    isCurrentlyBindingVH = false;
                     listener.onQuantityChanged(currentItem, newQuantity);
-                    updateDecreaseButtonAppearance(newQuantity);
                 }
             });
         }
 
-        private void updateDecreaseButtonAppearance(double quantity) {
-            // if (quantity <= 1) {
-            //
-            // } else {
-            // binding.decreaseButton.setImageResource(android.R.drawable.ic_menu_close_clear_cancel);
-            // }
-            binding.decreaseButton.setText(quantity <= 1 ? "🗑" : "−");
-            ;
+        private void updateDecreaseButtonAppearanceLocal(double quantity) {
+            if (isEditableProvider.isEditable()) { // Check if actually editable
+                binding.decreaseButton.setText(quantity <= 1 ? "🗑️" : "−");
+            } else {
+                binding.decreaseButton.setText("−"); // Default appearance if somehow visible when not editable
+            }
         }
 
         public void bind(OrderItemEntity item) {
-            // Store current item
-            currentItem = item;
+            this.currentItem = item;
+            isCurrentlyBindingVH = true;
 
-            // Remove old watchers if they exist
-            if (quantityWatcher != null) {
-                binding.quantityEdit.removeTextChangedListener(quantityWatcher);
-            }
-            if (priceWatcher != null) {
-                binding.priceEdit.removeTextChangedListener(priceWatcher);
-            }
-
-            // Set data with binding flag to prevent callbacks
-            isBinding = true;
             binding.productName.setText(item.getProductName());
-
-            // Format quantity as integer if it's a whole number
             if (item.getQuantity() == Math.floor(item.getQuantity())) {
-                binding.quantityEdit.setText(String.format("%.0f", item.getQuantity()));
+                binding.quantityEdit.setText(String.format(Locale.US, "%.0f", item.getQuantity()));
             } else {
                 binding.quantityEdit.setText(String.valueOf(item.getQuantity()));
             }
+            binding.priceEdit.setText(String.format(Locale.US, "%.2f", item.getSellPrice()));
 
-            // Format price as integer if it's a whole number
-            if (item.getSellPrice() == Math.floor(item.getSellPrice())) {
-                binding.priceEdit.setText(String.format("%.0f", item.getSellPrice()));
-            } else {
-                binding.priceEdit.setText(String.valueOf(item.getSellPrice()));
+            boolean editableNow = isEditableProvider.isEditable();
+            binding.quantityEdit.setEnabled(editableNow);
+            binding.priceEdit.setEnabled(editableNow); // Assuming price is editable
+            binding.increaseButton.setVisibility(editableNow ? View.VISIBLE : View.GONE);
+            binding.decreaseButton.setVisibility(editableNow ? View.VISIBLE : View.GONE);
+            if (editableNow) {
+                updateDecreaseButtonAppearanceLocal(item.getQuantity());
             }
 
-            isBinding = false;
 
-            // Set icons
-            // binding.increaseButton.setImageResource(android.R.drawable.ic_menu_add);
-            updateDecreaseButtonAppearance(item.getQuantity());
+            if (quantityWatcher != null)
+                binding.quantityEdit.removeTextChangedListener(quantityWatcher);
+            if (priceWatcher != null) binding.priceEdit.removeTextChangedListener(priceWatcher);
 
-            // Create and add new watchers
-            quantityWatcher = createQuantityWatcher(item);
-            priceWatcher = createPriceWatcher(item);
-
-            binding.quantityEdit.addTextChangedListener(quantityWatcher);
-            binding.priceEdit.addTextChangedListener(priceWatcher);
+            if (editableNow) {
+                quantityWatcher = createQuantityWatcherLocal(item);
+                priceWatcher = createPriceWatcherLocal(item); // If price is editable
+                binding.quantityEdit.addTextChangedListener(quantityWatcher);
+                binding.priceEdit.addTextChangedListener(priceWatcher);
+            } else {
+                quantityWatcher = null;
+                priceWatcher = null;
+            }
+            isCurrentlyBindingVH = false;
         }
 
-        private TextWatcher createQuantityWatcher(OrderItemEntity item) {
+        private TextWatcher createQuantityWatcherLocal(OrderItemEntity itemRef) {
             return new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -237,25 +175,23 @@ public class OrderEditorAdapter extends ListAdapter<OrderItemEntity, RecyclerVie
 
                 @Override
                 public void afterTextChanged(Editable s) {
-                    if (isBinding)
-                        return;
-
+                    if (isCurrentlyBindingVH || !isEditableProvider.isEditable()) return;
                     if (s.length() > 0) {
                         try {
                             double newQuantity = Double.parseDouble(s.toString());
-                            listener.onQuantityChanged(item, newQuantity);
-                            updateDecreaseButtonAppearance(newQuantity);
+                            if (Math.abs(itemRef.getQuantity() - newQuantity) > 0.001) {
+                                listener.onQuantityChanged(itemRef, newQuantity);
+                                updateDecreaseButtonAppearanceLocal(newQuantity);
+                            }
                         } catch (NumberFormatException e) {
-                            isBinding = true;
-                            binding.quantityEdit.setText(String.valueOf(item.getQuantity()));
-                            isBinding = false;
+                            Log.e(TAG, "NFE q:" + s);
                         }
                     }
                 }
             };
         }
 
-        private TextWatcher createPriceWatcher(OrderItemEntity item) {
+        private TextWatcher createPriceWatcherLocal(OrderItemEntity itemRef) {
             return new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -267,17 +203,15 @@ public class OrderEditorAdapter extends ListAdapter<OrderItemEntity, RecyclerVie
 
                 @Override
                 public void afterTextChanged(Editable s) {
-                    if (isBinding)
-                        return;
-
+                    if (isCurrentlyBindingVH || !isEditableProvider.isEditable()) return;
                     if (s.length() > 0) {
                         try {
                             double newPrice = Double.parseDouble(s.toString());
-                            listener.onPriceChanged(item, newPrice);
+                            if (Math.abs(itemRef.getSellPrice() - newPrice) > 0.001) {
+                                listener.onPriceChanged(itemRef, newPrice);
+                            }
                         } catch (NumberFormatException e) {
-                            isBinding = true;
-                            binding.priceEdit.setText(String.valueOf(item.getSellPrice()));
-                            isBinding = false;
+                            Log.e(TAG, "NFE p:" + s);
                         }
                     }
                 }

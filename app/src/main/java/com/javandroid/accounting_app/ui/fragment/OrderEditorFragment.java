@@ -4,8 +4,12 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,7 +20,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.app.ActivityCompat;
+// androidx.core.app.ActivityCompat; // Not directly used, Fragment's requestPermissions is used
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
@@ -26,36 +30,50 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.javandroid.accounting_app.R;
 import com.javandroid.accounting_app.data.model.OrderEntity;
-import com.javandroid.accounting_app.data.model.OrderItemEntity;
-import com.javandroid.accounting_app.ui.adapter.OrderEditorAdapter;
+// OrderItemEntity and OrderEditorAdapter are not directly used by this fragment anymore
+// import com.javandroid.accounting_app.data.model.OrderItemEntity;
+// import com.javandroid.accounting_app.ui.adapter.OrderEditorAdapter;
 import com.javandroid.accounting_app.ui.adapter.SavedOrdersAdapter;
 import com.javandroid.accounting_app.ui.viewmodel.SavedOrdersViewModel;
-import com.javandroid.accounting_app.ui.viewmodel.OrderEditViewModel;
-import com.javandroid.accounting_app.ui.viewmodel.CurrentOrderViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.OrderEditViewModel; // For observing potential delete events
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.OnOrderItemChangeListener {
+// Removed: implements OrderEditorAdapter.OnOrderItemChangeListener
+public class OrderEditorFragment extends Fragment {
+
+    private static final String TAG = "OrderEditorFragment";
+    private static final int PERMISSION_REQUEST_WRITE_EXTERNAL_STORAGE = 1001;
 
     private SavedOrdersViewModel savedOrdersViewModel;
-    private OrderEditViewModel orderEditViewModel;
-    private CurrentOrderViewModel currentOrderViewModel;
-    private OrderEditorAdapter orderItemsAdapter;
+    private OrderEditViewModel orderEditViewModel; // To observe events like order deletion
     private SavedOrdersAdapter savedOrdersAdapter;
-    private RecyclerView recyclerView;
+    private RecyclerView recyclerViewOrders;
     private TextView emptyStateTextView;
+    private EditText etSearchOrders;
+    private Button btnExportCsv;
+    private Button btnRefreshList; // Renamed from btn_save_changes
+
+    private Handler mainThreadHandler;
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        savedOrdersViewModel = new ViewModelProvider(requireActivity()).get(SavedOrdersViewModel.class);
+        orderEditViewModel = new ViewModelProvider(requireActivity()).get(OrderEditViewModel.class); // For observing events
+        mainThreadHandler = new Handler(Looper.getMainLooper());
+    }
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-            @Nullable Bundle savedInstanceState) {
+                             @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_order_editor, container, false);
     }
 
@@ -63,99 +81,54 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Check and request storage permissions
-        checkStoragePermissions();
-
         initViews(view);
-        setupViewModels();
         setupRecyclerView();
-        setupTabs();
-        setupListeners(view);
+        setupListeners();
         observeViewModels();
     }
 
-    private void checkStoragePermissions() {
-        // On Android 10+ we can use the scoped storage and don't need explicit
-        // permissions
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            if (ContextCompat.checkSelfPermission(requireContext(),
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(
-                        new String[] { Manifest.permission.WRITE_EXTERNAL_STORAGE },
-                        1001);
-            }
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-            @NonNull int[] grantResults) {
-        if (requestCode == 1001) {
-            if (grantResults.length > 0 && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(requireContext(),
-                        "Storage permission is needed to export data",
-                        Toast.LENGTH_LONG).show();
-            }
-        } else {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        }
-    }
-
     private void initViews(View view) {
-        recyclerView = view.findViewById(R.id.recycler_orders);
+        recyclerViewOrders = view.findViewById(R.id.recycler_orders);
         emptyStateTextView = view.findViewById(R.id.empty_state_text);
-    }
-
-    private void setupViewModels() {
-        savedOrdersViewModel = new ViewModelProvider(requireActivity()).get(SavedOrdersViewModel.class);
-        orderEditViewModel = new ViewModelProvider(requireActivity()).get(OrderEditViewModel.class);
-        currentOrderViewModel = new ViewModelProvider(requireActivity()).get(CurrentOrderViewModel.class);
+        etSearchOrders = view.findViewById(R.id.et_search);
+        btnExportCsv = view.findViewById(R.id.btn_export_csv);
+        btnRefreshList = view.findViewById(R.id.btn_save_changes); // Layout ID is btn_save_changes
+        btnRefreshList.setText("Refresh List"); // Update button text
     }
 
     private void setupRecyclerView() {
-        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-
-        // Initialize adapters
-        orderItemsAdapter = new OrderEditorAdapter(this);
+        recyclerViewOrders.setLayoutManager(new LinearLayoutManager(requireContext()));
         savedOrdersAdapter = new SavedOrdersAdapter(order -> {
-            // Handle order click - navigate to order details or show items
-            Toast.makeText(requireContext(), "Order #" + order.getOrderId() + " selected", Toast.LENGTH_SHORT).show();
-            showOrderItems(order.getOrderId());
-        });
-
-        // Set initial adapter
-        recyclerView.setAdapter(savedOrdersAdapter);
-    }
-
-    private void setupTabs() {
-        // Set up the recycler view with saved orders adapter
-        recyclerView.setAdapter(savedOrdersAdapter);
-        savedOrdersViewModel.getAllOrders().observe(getViewLifecycleOwner(), orders -> {
-            if (orders != null) {
-                savedOrdersAdapter.submitList(orders);
-                updateEmptyState(orders.isEmpty());
+            // Navigate to OrderDetailsFragment for editing
+            Log.d(TAG, "Navigating to details for order ID: " + order.getOrderId());
+            Bundle args = new Bundle();
+            args.putLong("orderId", order.getOrderId());
+            if (getView() != null) {
+                Navigation.findNavController(getView()).navigate(
+                        R.id.action_orderEditorFragment_to_orderDetailsFragment, args);
             }
         });
+        recyclerViewOrders.setAdapter(savedOrdersAdapter);
     }
 
-    private void setupListeners(View view) {
-        Button exportCsvButton = view.findViewById(R.id.btn_export_csv);
-        Button saveChangesButton = view.findViewById(R.id.btn_save_changes);
-        EditText etSearch = view.findViewById(R.id.et_search);
+    private void setupListeners() {
+        btnExportCsv.setOnClickListener(v -> {
+            if (checkStoragePermissions()) {
+                exportOrdersToCSV();
+            }
+        });
 
-        exportCsvButton.setOnClickListener(v -> exportOrdersToCSV());
-        saveChangesButton.setOnClickListener(v -> saveChanges());
+        btnRefreshList.setOnClickListener(v -> refreshOrderList());
 
-        // Add focus listener to show tips when search field is focused
-        etSearch.setOnFocusChangeListener((v, hasFocus) -> {
+        etSearchOrders.setOnFocusChangeListener((v, hasFocus) -> {
             if (hasFocus) {
                 Toast.makeText(requireContext(),
-                        "Enter an Order ID to find exact matches",
+                        "Enter Order ID to search. Clear to see all.",
                         Toast.LENGTH_SHORT).show();
             }
         });
 
-        etSearch.addTextChangedListener(new TextWatcher() {
+        etSearchOrders.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
             }
@@ -166,127 +139,161 @@ public class OrderEditorFragment extends Fragment implements OrderEditorAdapter.
 
             @Override
             public void afterTextChanged(Editable s) {
-                savedOrdersAdapter.filter(s.toString());
-
-                // Show immediate feedback about search results
-                int resultCount = savedOrdersAdapter.getItemCount();
-                if (s.length() > 0) {
-                    if (resultCount == 0) {
-                        updateEmptyState(true);
-                        emptyStateTextView.setText("No orders found for ID: " + s.toString());
-                    } else if (resultCount == 1) {
-                        updateEmptyState(false);
-                        Toast.makeText(requireContext(),
-                                "Found order #" + savedOrdersAdapter.getItem(0).getOrderId(),
-                                Toast.LENGTH_SHORT).show();
-                    } else {
-                        updateEmptyState(false);
-                    }
-                }
+                String query = s.toString();
+                savedOrdersAdapter.filter(query);
+                updateEmptyState(savedOrdersAdapter.getItemCount() == 0, query);
             }
         });
     }
 
     private void observeViewModels() {
-        // Load saved orders
         savedOrdersViewModel.getAllOrders().observe(getViewLifecycleOwner(), orders -> {
             if (orders != null) {
-                savedOrdersAdapter.submitList(orders);
-                updateEmptyState(orders.isEmpty());
+                Log.d(TAG, "Observed " + orders.size() + " orders from SavedOrdersViewModel.");
+                // If there's an active search query, filter might re-apply,
+                // otherwise submit the full list which then gets filtered by current query if any.
+                String currentQuery = etSearchOrders.getText().toString();
+                savedOrdersAdapter.submitList(orders); // Submit full list first
+                savedOrdersAdapter.filter(currentQuery); // Then apply current filter
+                updateEmptyState(savedOrdersAdapter.getItemCount() == 0, currentQuery);
             }
         });
 
-        // Observe order empty events (when order is deleted)
-        orderEditViewModel.getOrderEmptyEvent().observe(getViewLifecycleOwner(), isEmpty -> {
-            if (Boolean.TRUE.equals(isEmpty)) {
-                // Refresh the list of orders
-                savedOrdersViewModel.getAllOrders();
-            }
-        });
+        // Observe events from OrderEditViewModel, e.g., if an order was deleted elsewhere
+        // and this list needs to be aware. (This might be redundant if SavedOrdersViewModel.getAllOrders()
+        // is robustly observing database changes).
+        // For example, if OrderEditViewModel had a LiveData for "orderDeletedEvent":
+        // orderEditViewModel.getOrderDeletedEvent().observe(getViewLifecycleOwner(), event -> {
+        //     if (event) refreshOrderList(); // Or let LiveData above handle it
+        // });
     }
 
-    private void updateEmptyState(boolean isEmpty) {
+    private void updateEmptyState(boolean isEmpty, String query) {
         if (isEmpty) {
             emptyStateTextView.setVisibility(View.VISIBLE);
-            emptyStateTextView.setText("No orders found");
+            if (query != null && !query.isEmpty()) {
+                emptyStateTextView.setText("No orders found for: \"" + query + "\"");
+            } else {
+                emptyStateTextView.setText("No orders found.");
+            }
         } else {
             emptyStateTextView.setVisibility(View.GONE);
         }
     }
 
-    private void showOrderItems(long orderId) {
-        // Navigate to a separate fragment to view order details
-        OrderEntity orderToEdit = null;
-        List<OrderEntity> currentOrders = savedOrdersAdapter.getCurrentList();
-        for (OrderEntity order : currentOrders) {
-            if (order.getOrderId() == orderId) {
-                orderToEdit = order;
-                break;
+    private void refreshOrderList() {
+        etSearchOrders.setText(""); // Clear search query
+        // The observer for savedOrdersViewModel.getAllOrders() will be triggered
+        // when the list is submitted after clearing the filter, or if data changes.
+        // For an explicit re-fetch if LiveData isn't updating (e.g. data changed outside app's direct ops),
+        // you might need a method in SavedOrdersViewModel to force a query.
+        // For now, clearing the filter and letting LiveData do its work is usually sufficient.
+        savedOrdersAdapter.filter(""); // This will make the adapter use its original full list
+        updateEmptyState(savedOrdersAdapter.getItemCount() == 0, "");
+        Toast.makeText(requireContext(), "List refreshed.", Toast.LENGTH_SHORT).show();
+    }
+
+
+    private boolean checkStoragePermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // No explicit permission needed for app-specific directory or MediaStore on Q+
+            // if writing to public directories like Downloads, different rules apply.
+            // For getExternalFilesDir(null), no permission is needed.
+            // For Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            // it's more complex and often requires SAF or MediaStore API.
+            // Let's assume we use getExternalFilesDir for simplicity of permissions.
+            return true;
+        }
+        if (ContextCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    PERMISSION_REQUEST_WRITE_EXTERNAL_STORAGE);
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if (requestCode == PERMISSION_REQUEST_WRITE_EXTERNAL_STORAGE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                exportOrdersToCSV();
+            } else {
+                Toast.makeText(requireContext(),
+                        "Storage permission is required to export data.",
+                        Toast.LENGTH_LONG).show();
             }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         }
-
-        if (orderToEdit != null) {
-            // Set the order for editing
-            orderEditViewModel.setEditingOrder(orderToEdit);
-
-            // Navigate to the OrderDetailsFragment
-            Bundle args = new Bundle();
-            args.putLong("orderId", orderId);
-            Navigation.findNavController(requireView()).navigate(
-                    R.id.action_orderEditorFragment_to_orderDetailsFragment, args);
-        }
-    }
-
-    @Override
-    public void onQuantityChanged(OrderItemEntity item, double newQuantity) {
-        currentOrderViewModel.updateQuantity(item, newQuantity);
-    }
-
-    @Override
-    public void onPriceChanged(OrderItemEntity item, double newPrice) {
-        // Update price logic if needed
-    }
-
-    @Override
-    public void onDelete(OrderItemEntity item) {
-        currentOrderViewModel.removeItem(item);
     }
 
     private void exportOrdersToCSV() {
-        // Implementation for exporting orders to CSV
-        // Create file in Download directory
-        try {
-            File documentsDir = getContext().getExternalFilesDir(null);
-            if (documentsDir != null) {
-                String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-                File exportFile = new File(documentsDir, "orders_" + timestamp + ".csv");
+        List<OrderEntity> ordersToExport = savedOrdersAdapter.getCurrentList(); // Get currently displayed/filtered list
+        if (ordersToExport == null || ordersToExport.isEmpty()) {
+            Toast.makeText(getContext(), "No orders to export.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-                try (FileWriter writer = new FileWriter(exportFile)) {
-                    // Write CSV header
-                    writer.append("Order ID,Date,Customer ID,Total\n");
+        String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+        String fileName = "orders_export_" + timestamp + ".csv";
+        File exportFile;
 
-                    // Write each order
-                    List<OrderEntity> orders = savedOrdersAdapter.getCurrentList();
-                    for (OrderEntity order : orders) {
-                        writer.append(String.format(Locale.getDefault(), "%d,%s,%d,%.2f\n",
-                                order.getOrderId(),
-                                order.getDate(),
-                                order.getCustomerId(),
-                                order.getTotal()));
-                    }
-                }
+        // Use app-specific external files directory (no special permission needed on API 19+)
+        File documentsDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+        if (documentsDir == null) {
+            Toast.makeText(getContext(), "Error accessing storage directory.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!documentsDir.exists()) {
+            documentsDir.mkdirs();
+        }
+        exportFile = new File(documentsDir, fileName);
 
-                Toast.makeText(getContext(), "Orders exported to " + exportFile.getAbsolutePath(),
-                        Toast.LENGTH_LONG).show();
+        try (FileWriter writer = new FileWriter(exportFile)) {
+            // CSV Header
+            writer.append("Order ID,Date,Customer ID,User ID,Total\n");
+
+            // Write order data
+            for (OrderEntity order : ordersToExport) {
+                writer.append(String.valueOf(order.getOrderId())).append(",");
+                writer.append("\"").append(escapeCsvField(order.getDate())).append("\"").append(",");
+                writer.append(String.valueOf(order.getCustomerId())).append(",");
+                writer.append(String.valueOf(order.getUserId())).append(",");
+                writer.append(String.format(Locale.US, "%.2f", order.getTotal())).append("\n");
             }
+            writer.flush();
+            Toast.makeText(getContext(), "Orders exported to: " + exportFile.getAbsolutePath(), Toast.LENGTH_LONG).show();
+            Log.d(TAG, "CSV Exported to: " + exportFile.getAbsolutePath());
+
         } catch (IOException e) {
+            Log.e(TAG, "Error exporting orders to CSV", e);
             Toast.makeText(getContext(), "Error exporting orders: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            e.printStackTrace();
         }
     }
 
-    private void saveChanges() {
-        orderEditViewModel.saveOrderChanges();
-        Toast.makeText(requireContext(), "Changes saved", Toast.LENGTH_SHORT).show();
+    private String escapeCsvField(String field) {
+        if (field == null) return "";
+        // Replace double quotes with two double quotes
+        return field.replace("\"", "\"\"");
+    }
+
+
+    // Removed OnOrderItemChangeListener methods as OrderEditorAdapter is not used here.
+    // void onQuantityChanged(OrderItemEntity item, double newQuantity);
+    // void onPriceChanged(OrderItemEntity item, double newPrice);
+    // void onDelete(OrderItemEntity item);
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        // Clean up handler if it was posting delayed messages, etc.
+        if (mainThreadHandler != null) {
+            mainThreadHandler.removeCallbacksAndMessages(null);
+        }
+        recyclerViewOrders = null; // Release reference
+        savedOrdersAdapter = null; // Release reference
     }
 }

@@ -12,31 +12,31 @@ import com.javandroid.accounting_app.data.model.ProductEntity;
 import com.javandroid.accounting_app.data.repository.ProductRepository;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService; // Added for direct execution if needed
+import java.util.concurrent.Executors;   // Added
 
 public class ProductViewModel extends AndroidViewModel {
 
     private final ProductRepository productRepository;
     private final LiveData<List<ProductEntity>> allProducts;
     private final MutableLiveData<ProductEntity> selectedProduct = new MutableLiveData<>();
+    private final ExecutorService executor; // For background tasks if needed directly by VM
 
     public ProductViewModel(@NonNull Application application) {
         super(application);
         productRepository = new ProductRepository(application);
         allProducts = productRepository.getAllProducts();
+        executor = Executors.newSingleThreadExecutor(); // Initialize executor
     }
 
-    // Method to fetch all products from the repository
     public LiveData<List<ProductEntity>> getAllProducts() {
         return allProducts;
     }
 
-    // Method to add a product to the order (this can be invoked from the UI layer)
     public void addProductToOrder(ProductEntity product) {
-        // Here you can add logic to add the product to the current order
         Log.d("ProductViewModel", "Product added to order: " + product.getName());
     }
 
-    // Method to insert a new product into the database
     public void insertProduct(ProductEntity product) {
         productRepository.insert(product);
     }
@@ -53,34 +53,12 @@ public class ProductViewModel extends AndroidViewModel {
         productRepository.update(products);
     }
 
-    public void updateProduct(ProductEntity product) {
-        productRepository.update(product);
-    }
-
-    public ProductEntity createProduct(String name, String barcode, double buyPrice, double sellPrice, int stock) {
-        ProductEntity product = new ProductEntity(name, barcode);
-        product.setBuyPrice(buyPrice);
-        product.setSellPrice(sellPrice);
-        product.setStock(stock);
-        return product;
-    }
-
-    public void insert(ProductEntity product) {
-        productRepository.insert(product);
-    }
-
+    // This is the key method used for updating a single product, including its stock
     public void update(ProductEntity product) {
         productRepository.update(product);
     }
 
-    public void delete(ProductEntity product) {
-        productRepository.delete(product);
-    }
-
-    public ProductEntity getProductByBarcodeSync(String barcode) {
-        return productRepository.getProductByBarcodeSync(barcode);
-    }
-
+    // Synchronous get for use in background threads (like in OrderEditViewModel)
     public ProductEntity getProductByIdSync(long productId) {
         return productRepository.getProductByIdSync(productId);
     }
@@ -95,5 +73,30 @@ public class ProductViewModel extends AndroidViewModel {
 
     public LiveData<ProductEntity> getSelectedProduct() {
         return selectedProduct;
+    }
+
+    // If you need to explicitly adjust stock and want a dedicated method:
+    // This requires ProductRepository to also have a synchronous update method or handle it internally.
+    public void adjustProductStock(long productId, double quantityChange) {
+        executor.execute(() -> {
+            ProductEntity product = productRepository.getProductByIdSync(productId);
+            if (product != null) {
+                Log.d("ProductViewModel", "Adjusting stock for " + product.getName() +
+                        ". Current: " + product.getStock() + ", Change: " + quantityChange);
+                product.setStock(product.getStock() + quantityChange); // quantityChange is delta (negative to decrease)
+                productRepository.update(product);
+            } else {
+                Log.e("ProductViewModel", "Product not found for stock adjustment: ID " + productId);
+            }
+        });
+    }
+
+
+    @Override
+    protected void onCleared() {
+        super.onCleared();
+        if (executor != null && !executor.isShutdown()) {
+            executor.shutdown();
+        }
     }
 }

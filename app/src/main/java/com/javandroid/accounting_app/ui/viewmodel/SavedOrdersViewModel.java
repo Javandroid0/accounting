@@ -1,144 +1,91 @@
 package com.javandroid.accounting_app.ui.viewmodel;
 
 import android.app.Application;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData; // Added for profit LiveData
 
 import com.javandroid.accounting_app.data.model.OrderEntity;
-import com.javandroid.accounting_app.data.model.OrderItemEntity;
-import com.javandroid.accounting_app.data.repository.OrderItemRepository;
+// import com.javandroid.accounting_app.data.model.OrderItemEntity; // Not directly used here
+import com.javandroid.accounting_app.data.repository.OrderItemRepository; // Not directly used here for public methods
 import com.javandroid.accounting_app.data.repository.OrderRepository;
-import com.javandroid.accounting_app.data.repository.OrderStateRepository;
-import com.javandroid.accounting_app.data.repository.OrderSessionManager;
+// import com.javandroid.accounting_app.data.repository.OrderStateRepository; // Not used by this VM
+// import com.javandroid.accounting_app.data.repository.OrderSessionManager; // Not used by this VM
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * ViewModel responsible for managing saved/historical orders
- */
 public class SavedOrdersViewModel extends AndroidViewModel {
     private static final String TAG = "SavedOrdersViewModel";
 
     private final OrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
-    private final OrderSessionManager sessionManager;
-    private OrderStateRepository stateRepository;
+    // private final OrderItemRepository orderItemRepository; // Not directly exposed
+    // private final OrderSessionManager sessionManager; // Not used
+    // private OrderStateRepository stateRepository; // Not used
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final Handler mainThreadHandler = new Handler(Looper.getMainLooper());
 
-    // LiveData for profit calculations
-    private final androidx.lifecycle.MutableLiveData<Double> userProfitLiveData = new androidx.lifecycle.MutableLiveData<>();
-    private final androidx.lifecycle.MutableLiveData<Double> userCustomerProfitLiveData = new androidx.lifecycle.MutableLiveData<>();
+
+    private final MutableLiveData<Double> userProfitLiveData = new MutableLiveData<>();
+    private final MutableLiveData<Double> userCustomerProfitLiveData = new MutableLiveData<>();
 
     public SavedOrdersViewModel(@NonNull Application application) {
         super(application);
         orderRepository = new OrderRepository(application);
-        orderItemRepository = new OrderItemRepository(application);
-        sessionManager = OrderSessionManager.getInstance();
-        stateRepository = sessionManager.getCurrentRepository();
+        // orderItemRepository = new OrderItemRepository(application); // Only if needed internally
+        // sessionManager = OrderSessionManager.getInstance();
+        // stateRepository = sessionManager.getCurrentRepository();
     }
 
-    /**
-     * Gets the current state repository from the session manager
-     * This ensures we're always using the most up-to-date repository
-
-     private OrderStateRepository getStateRepository() {
-     // Update the reference to the current repository
-     stateRepository = sessionManager.getCurrentRepository();
-     return stateRepository;
-     }
-     */
-
-    /**
-     * Get all orders from the repository
-     */
     public LiveData<List<OrderEntity>> getAllOrders() {
         return orderRepository.getAllOrders();
     }
 
-    /**
-     * Get orders for a specific customer
-     */
     public LiveData<List<OrderEntity>> getOrdersByCustomerId(long customerId) {
         return orderRepository.getOrdersByCustomerId(customerId);
     }
 
-    /**
-     * Get orders for a specific user
-
-     public LiveData<List<OrderEntity>> getOrdersByUserId(long userId) {
-     return orderRepository.getOrdersByUserId(userId);
-     }
-     */
-
-    /**
-     * Get an order by ID
-     */
     public LiveData<OrderEntity> getOrderById(long orderId) {
         return orderRepository.getOrderById(orderId);
     }
 
     /**
-     * Get items for a specific order
+     * Deletes a given order. Associated order items are expected to be deleted
+     * by database cascade rules.
+     *
+     * @param orderToDelete The order to delete.
+     * @param onComplete    Callback to run on the main thread after the operation.
      */
-//    public LiveData<List<OrderItemEntity>> getOrderItems(long orderId) {
-//        return orderRepository.getOrderItems(orderId);
-//    }
+    public void deleteOrderAndCascade(OrderEntity orderToDelete, Runnable onComplete) {
+        if (orderToDelete == null || orderToDelete.getOrderId() <= 0) {
+            Log.e(TAG, "Cannot delete: Invalid OrderEntity or orderId.");
+            if (onComplete != null) mainThreadHandler.post(onComplete);
+            return;
+        }
+        Log.d(TAG, "Requesting delete for Order ID: " + orderToDelete.getOrderId());
+        executor.execute(() -> {
+            try {
+                orderRepository.deleteOrder(orderToDelete);
+                Log.d(TAG, "Order ID: " + orderToDelete.getOrderId() + " deleted. Items should cascade delete.");
+                if (onComplete != null) {
+                    mainThreadHandler.post(onComplete);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error deleting order ID: " + orderToDelete.getOrderId(), e);
+                if (onComplete != null) {
+                    mainThreadHandler.post(onComplete); // Still call complete, but an error occurred
+                }
+            }
+        });
+    }
 
-    /**
-     * Delete an order
-
-     public void deleteOrder(OrderEntity order) {
-     orderRepository.deleteOrder(order);
-     }
-
-     /**
-     * Delete all orders
-
-     public void deleteAllOrders() {
-     orderRepository.deleteAllOrders();
-     }
-
-     /**
-     * Delete an order item
-
-     public void deleteOrderItem(OrderItemEntity orderItem) {
-     //        orderRepository.deleteOrderItem(orderItem);
-     orderItemRepository.deleteOrderItem(orderItem);
-     }
-     */
-
-    /**
-     * Delete an order and all its items
-
-     public void deleteOrderAndItems(long orderId) {
-     Log.d(TAG, "Deleting order ID: " + orderId + " and all its items from database");
-
-     executor.execute(() -> {
-     try {
-     // Get the order entity from the database
-     OrderEntity orderToDelete = orderRepository.getOrderByIdSync(orderId);
-     if (orderToDelete != null) {
-     // Delete the order from database
-     orderRepository.deleteOrder(orderToDelete);
-     Log.d(TAG, "Order deleted from database: " + orderId);
-     } else {
-     Log.w(TAG, "Could not find order to delete: " + orderId);
-     }
-     } catch (Exception e) {
-     Log.e(TAG, "Failed to delete order: " + e.getMessage(), e);
-     }
-     });
-     }
-     */
-
-    /**
-     * Calculate profit for a specific user
-     */
+    // Profit calculation methods (already present)
     public void calculateProfitByUser(long userId) {
         orderRepository.calculateProfitByUser(userId, profit -> {
             Log.d(TAG, "Setting profit for user " + userId + ": " + profit);
@@ -146,16 +93,10 @@ public class SavedOrdersViewModel extends AndroidViewModel {
         });
     }
 
-    /**
-     * Get the LiveData for user profit
-     */
-    public androidx.lifecycle.LiveData<Double> getUserProfit() {
+    public LiveData<Double> getUserProfit() {
         return userProfitLiveData;
     }
 
-    /**
-     * Calculate profit for a specific user and customer combination
-     */
     public void calculateProfitByUserAndCustomer(long userId, long customerId) {
         Log.d(TAG, "Requesting profit calculation for user " + userId + " and customer " + customerId);
         orderRepository.calculateProfitByUserAndCustomer(userId, customerId, profit -> {
@@ -164,17 +105,13 @@ public class SavedOrdersViewModel extends AndroidViewModel {
         });
     }
 
-    /**
-     * Get the LiveData for user-customer profit
-     */
-    public androidx.lifecycle.LiveData<Double> getUserCustomerProfit() {
+    public LiveData<Double> getUserCustomerProfit() {
         return userCustomerProfitLiveData;
     }
 
     @Override
     protected void onCleared() {
         super.onCleared();
-        // Shut down the executor when ViewModel is cleared
         if (!executor.isShutdown()) {
             executor.shutdown();
         }

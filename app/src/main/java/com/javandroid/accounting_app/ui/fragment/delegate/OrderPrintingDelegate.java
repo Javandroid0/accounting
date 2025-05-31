@@ -103,7 +103,7 @@ public class OrderPrintingDelegate {
 
     /**
      * Check permissions and print the order
-     * 
+     *
      * @param isPreview true if this is just a preview
      */
     public void checkPermissionsAndPrint(boolean isPreview) {
@@ -134,7 +134,7 @@ public class OrderPrintingDelegate {
                             Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
 
                 ActivityCompat.requestPermissions(fragment.requireActivity(),
-                        new String[] {
+                        new String[]{
                                 Manifest.permission.BLUETOOTH,
                                 Manifest.permission.BLUETOOTH_ADMIN,
                                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -174,7 +174,7 @@ public class OrderPrintingDelegate {
 
     /**
      * Execute the print job
-     * 
+     *
      * @param isPreview true if this is just a preview
      */
     private void doPrintOrder(boolean isPreview) {
@@ -191,8 +191,8 @@ public class OrderPrintingDelegate {
             return;
         }
 
-        OrderEntity currentOrder = currentOrderViewModel.getCurrentOrder().getValue();
-        List<OrderItemEntity> items = currentOrderViewModel.getCurrentOrderItems().getValue();
+        OrderEntity currentOrder = currentOrderViewModel.getFragmentOrderLiveData().getValue();
+        List<OrderItemEntity> items = currentOrderViewModel.getFragmentOrderItemsLiveData().getValue();
 
         if (currentOrder == null || items == null || items.isEmpty()) {
             mainHandler.post(() -> Toast.makeText(fragment.requireContext(),

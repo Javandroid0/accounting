@@ -15,7 +15,7 @@ import java.util.List;
 @Dao
 public interface OrderItemDao {
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     void insertOrderItem(OrderItemEntity orderItem);
 
     @Query("SELECT * FROM order_items WHERE orderId = :orderId")

@@ -10,6 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer; // Required for internal LiveData observation
 
 import com.javandroid.accounting_app.data.model.OrderEntity;
 import com.javandroid.accounting_app.data.model.OrderItemEntity;
@@ -27,537 +28,381 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * ViewModel responsible for managing the current order being edited
- */
 public class CurrentOrderViewModel extends AndroidViewModel {
     private static final String TAG = "CurrentOrderViewModel";
 
     private final OrderRepository orderRepository;
     public final OrderItemRepository orderItemRepository;
-    private final OrderStateRepository stateRepository;
     private final OrderSessionManager sessionManager;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private OrderRepository.OnOrderIdResultCallback onOrderIdResultCallback;
+
+    // Stable LiveData instances for Fragment observation
+    private final MutableLiveData<OrderEntity> _fragmentOrderLiveData = new MutableLiveData<>();
+
+    public LiveData<OrderEntity> getFragmentOrderLiveData() {
+        return _fragmentOrderLiveData;
+    }
+
+    private final MutableLiveData<List<OrderItemEntity>> _fragmentOrderItemsLiveData = new MutableLiveData<>();
+
+    public LiveData<List<OrderItemEntity>> getFragmentOrderItemsLiveData() {
+        return _fragmentOrderItemsLiveData;
+    }
+
+    // Observers for current session's LiveData
+    private Observer<OrderEntity> sessionOrderObserver;
+    private LiveData<OrderEntity> currentSessionOrderLiveDataInternal;
+
+    private Observer<List<OrderItemEntity>> sessionItemsObserver;
+    private LiveData<List<OrderItemEntity>> currentSessionItemsLiveDataInternal;
+
 
     public CurrentOrderViewModel(@NonNull Application application) {
         super(application);
         orderRepository = new OrderRepository(application);
         orderItemRepository = new OrderItemRepository(application);
         sessionManager = OrderSessionManager.getInstance();
-        stateRepository = sessionManager.getCurrentRepository();
 
-        // Initialize if empty
-        if (stateRepository.getCurrentOrderValue() == null) {
-//            resetCurrentOrder();
-            resetCurrentOrderInternal();
+        // Initial setup of observers for the current session's data
+        observeCurrentSessionData();
+    }
+
+    private OrderStateRepository getCurrentStateRepository() {
+        return sessionManager.getCurrentRepository();
+    }
+
+    /**
+     * Sets up observers to bridge LiveData from the current OrderStateRepository
+     * to the stable LiveData instances exposed to the Fragment.
+     * This should be called initially and after every session reset.
+     */
+    private void observeCurrentSessionData() {
+        OrderStateRepository currentRepo = getCurrentStateRepository();
+
+        // Stop observing previous session's LiveData if any
+        if (sessionOrderObserver != null && currentSessionOrderLiveDataInternal != null) {
+            currentSessionOrderLiveDataInternal.removeObserver(sessionOrderObserver);
         }
+        if (sessionItemsObserver != null && currentSessionItemsLiveDataInternal != null) {
+            currentSessionItemsLiveDataInternal.removeObserver(sessionItemsObserver);
+        }
+
+        // Get LiveData from the NEW current session's repository
+        currentSessionOrderLiveDataInternal = currentRepo.getCurrentOrder();
+        currentSessionItemsLiveDataInternal = currentRepo.getCurrentOrderItems();
+
+        // Create new observers
+        sessionOrderObserver = orderEntity -> _fragmentOrderLiveData.setValue(orderEntity);
+        sessionItemsObserver = orderItems -> _fragmentOrderItemsLiveData.setValue(orderItems);
+
+        // Start observing the new session's LiveData
+        // Use observeForever as this ViewModel outlives Fragments sometimes,
+        // but ensure they are removed in onCleared.
+        currentSessionOrderLiveDataInternal.observeForever(sessionOrderObserver);
+        currentSessionItemsLiveDataInternal.observeForever(sessionItemsObserver);
+
+        Log.d(TAG, "Now observing data from new/current OrderStateRepository.");
     }
 
-    /**
-     * Get the current order being edited
-     */
-    public LiveData<OrderEntity> getCurrentOrder() {
-        return stateRepository.getCurrentOrder();
-    }
 
-    /**
-     * Get the items for the current order
-     */
-    public LiveData<List<OrderItemEntity>> getCurrentOrderItems() {
-        return stateRepository.getCurrentOrderItems();
-    }
-
-    /**
-     * Add a product to the current order
-     */
     public void addProduct(ProductEntity product, double quantity) {
-        List<OrderItemEntity> items = stateRepository.getCurrentOrderItemsValue();
-        if (items == null) {
-            items = new ArrayList<>();
+        OrderStateRepository currentRepo = getCurrentStateRepository();
+        OrderEntity order = currentRepo.getCurrentOrderValue(); // Get current order state
+        List<OrderItemEntity> items = currentRepo.getCurrentOrderItemsValue();
+
+        if (order == null) {
+            Log.e(TAG, "Cannot add product, current order is null in repository.");
+            // This case should ideally be prevented by OrderStateRepository always having an order.
+            // If it happens, re-initialize or log error.
+            // For now, let's ensure order is not null by re-fetching (though less ideal)
+            // OrderStateRepository constructor ensures it's not null.
+            return;
         }
 
-        // Create a new list to trigger observer updates
+
+        if (items == null) items = new ArrayList<>();
         List<OrderItemEntity> newItems = new ArrayList<>(items);
 
-        // Check if product already exists in the order
         boolean productExists = false;
         for (OrderItemEntity item : newItems) {
-            if (item.getProductId() != null && item.getProductId() == product.getProductId()) {
-                // Product already exists, update quantity instead of adding new item
+            if (item.getProductId() != null && item.getProductId().equals(product.getProductId())) {
                 double newQuantity = item.getQuantity() + quantity;
-                double oldQuantity = item.getQuantity();
                 item.setQuantity(newQuantity);
-
-                Log.d(TAG, "Updated quantity for product " + product.getName() +
-                        " (ID=" + product.getProductId() + ") from " +
-                        oldQuantity + " to " + newQuantity + ", unit price=" + product.getSellPrice());
-
-                // Update total in current order
-                OrderEntity order = stateRepository.getCurrentOrderValue();
-                if (order != null) {
-                    double oldTotal = order.getTotal();
-                    double addedValue = quantity * product.getSellPrice();
-                    order.setTotal(oldTotal + addedValue);
-
-                    Log.d(TAG, "Order total updated: " + oldTotal + " + " + addedValue + " = " + order.getTotal() +
-                            " (added " + quantity + " units of " + product.getName() + ")");
-
-                    stateRepository.setCurrentOrder(order);
-                }
-
                 productExists = true;
                 break;
             }
         }
 
-        // If product doesn't exist, add new item
         if (!productExists) {
-            // Generate a temporary unique ID
-            long tempId = stateRepository.generateTempId();
+            // For new items to be inserted into DB, itemId should be 0 for Room to auto-generate.
+            // The tempId from OrderStateRepository is for in-session UI tracking (e.g., DiffUtil uniqueness if needed there).
+            // Here, we create the OrderItemEntity that will go into the list observed by the UI.
+            long tempDisplayId = currentRepo.generateTempId(); // For UI list stability before saving
 
-            OrderItemEntity orderItem = new OrderItemEntity(tempId, product.getBarcode());
+            OrderItemEntity orderItem = new OrderItemEntity(tempDisplayId, product.getBarcode());
+            // When saving, this tempDisplayId will be converted to 0 if it's negative (or handled appropriately)
+            // so DB generates a real ID.
+
             orderItem.setProductId(product.getProductId());
             orderItem.setProductName(product.getName());
             orderItem.setBuyPrice(product.getBuyPrice());
             orderItem.setSellPrice(product.getSellPrice());
             orderItem.setQuantity(quantity);
-
-            Log.d(TAG, "Added new product " + product.getName() +
-                    " (ID=" + product.getProductId() + ") with temp itemId=" +
-                    tempId + ", quantity=" + quantity + ", sell price=" + product.getSellPrice());
-
-            // Update total in current order
-            OrderEntity order = stateRepository.getCurrentOrderValue();
-            if (order != null) {
-                double oldTotal = order.getTotal();
-                double addedValue = quantity * product.getSellPrice();
-                order.setTotal(oldTotal + addedValue);
-
-                Log.d(TAG, "Order total updated: " + oldTotal + " + " + addedValue + " = " + order.getTotal() +
-                        " (added new product " + product.getName() + ")");
-
-                stateRepository.setCurrentOrder(order);
-            }
-
             newItems.add(orderItem);
         }
 
-        // Set the new list to trigger observers
-        stateRepository.setCurrentOrderItems(newItems);
+        // Update total in the current order object from the repository
+        double newTotal = calculateTotalFromItems(newItems);
+        order.setTotal(newTotal);
+
+        // Post updates back to the OrderStateRepository's LiveData
+        currentRepo.setCurrentOrder(order); // This updates the order object (including total)
+        currentRepo.setCurrentOrderItems(newItems); // This updates the items list
     }
 
-    /**
-     * Remove an item from the current order
-     */
-    public void removeItem(OrderItemEntity item) {
-        List<OrderItemEntity> items = stateRepository.getCurrentOrderItemsValue();
-        if (items == null) {
-            return;
-        }
+    public void removeItem(OrderItemEntity itemToRemove) {
+        OrderStateRepository currentRepo = getCurrentStateRepository();
+        OrderEntity order = currentRepo.getCurrentOrderValue();
+        List<OrderItemEntity> items = currentRepo.getCurrentOrderItemsValue();
 
-        // Update total in current order
-        OrderEntity order = stateRepository.getCurrentOrderValue();
-        if (order != null) {
-            double itemTotal = item.getQuantity() * item.getSellPrice();
-            double newTotal = order.getTotal() - itemTotal;
+        if (order == null || items == null) return;
 
-            // Ensure total is never negative
-            if (newTotal < 0) {
-                newTotal = 0.0;
-            }
+        List<OrderItemEntity> newItems = new ArrayList<>(items);
+        boolean removed = newItems.removeIf(item -> item.getItemId() == itemToRemove.getItemId());
 
+        if (removed) {
+            double newTotal = calculateTotalFromItems(newItems);
             order.setTotal(newTotal);
-            stateRepository.setCurrentOrder(order);
+            currentRepo.setCurrentOrder(order);
+            currentRepo.setCurrentOrderItems(newItems);
         }
-
-        // Update UI by removing from list and notifying
-        boolean removed = false;
-
-        // First try direct object removal
-        if (items.remove(item)) {
-            removed = true;
-        } else {
-            // If direct object removal fails, try finding by ID
-            for (int i = 0; i < items.size(); i++) {
-                if (items.get(i).getItemId() == item.getItemId()) {
-                    items.remove(i);
-                    removed = true;
-                    break;
-                }
-            }
-        }
-
-        // Force the list to be considered as new to trigger UI updates
-        List<OrderItemEntity> newList = new ArrayList<>(items);
-        stateRepository.setCurrentOrderItems(newList);
     }
 
-    /**
-     * Update the quantity of an item in the current order
-     */
-    public void updateQuantity(OrderItemEntity item, double newQuantity) {
-        List<OrderItemEntity> items = stateRepository.getCurrentOrderItemsValue();
-        if (items == null) {
-            items = new ArrayList<>();
-            stateRepository.setCurrentOrderItems(items);
-            return;
-        }
+    public void updateQuantity(OrderItemEntity itemToUpdate, double newQuantity) {
+        OrderStateRepository currentRepo = getCurrentStateRepository();
+        OrderEntity order = currentRepo.getCurrentOrderValue();
+        List<OrderItemEntity> items = currentRepo.getCurrentOrderItemsValue();
 
+        if (order == null || items == null) return;
+
+        List<OrderItemEntity> newItems = new ArrayList<>(items); // Work with a copy
         boolean itemFound = false;
-        for (OrderItemEntity orderItem : items) {
-            if (orderItem.getItemId() == item.getItemId()) {
-                // Calculate the price difference based on the quantity change
-                double priceDiff = (newQuantity - orderItem.getQuantity()) * orderItem.getSellPrice();
+        for (OrderItemEntity orderItem : newItems) {
+            if (orderItem.getItemId() == itemToUpdate.getItemId()) {
                 orderItem.setQuantity(newQuantity);
-
-                Log.d(TAG, "Updated quantity for item " + orderItem.getProductName() +
-                        " (ID=" + orderItem.getItemId() + ") from " +
-                        item.getQuantity() + " to " + newQuantity);
-
-                // Update total in current order
-                OrderEntity order = stateRepository.getCurrentOrderValue();
-                if (order != null) {
-                    double newTotal = order.getTotal() + priceDiff;
-                    if (newTotal < 0) {
-                        // Recalculate the total based on all items to ensure correctness
-                        updateOrderTotal();
-                    } else {
-                        order.setTotal(newTotal);
-                        stateRepository.setCurrentOrder(order);
-                    }
-                }
-
                 itemFound = true;
                 break;
             }
         }
 
         if (itemFound) {
-            // Force the list to be considered as new to trigger UI updates
-            List<OrderItemEntity> newList = new ArrayList<>(items);
-            stateRepository.setCurrentOrderItems(newList);
+            double newTotal = calculateTotalFromItems(newItems);
+            order.setTotal(newTotal);
+            currentRepo.setCurrentOrder(order);
+            currentRepo.setCurrentOrderItems(newItems);
         } else {
-            Log.w(TAG, "Tried to update quantity for non-existent item: " + item.getProductName() +
-                    " (ID=" + item.getItemId() + ")");
+            Log.w(TAG, "Tried to update quantity for non-existent item: " + itemToUpdate.getProductName());
         }
     }
 
-    /**
-     * Confirm the current order
-     */
+    private double calculateTotalFromItems(List<OrderItemEntity> items) {
+        if (items == null) return 0.0;
+        double total = 0.0;
+        for (OrderItemEntity item : items) {
+            total += item.getQuantity() * item.getSellPrice();
+        }
+        return Math.max(0.0, total); // Ensure non-negative
+    }
+
+
     public void confirmOrder() {
-        OrderEntity order = stateRepository.getCurrentOrderValue();
-        List<OrderItemEntity> items = stateRepository.getCurrentOrderItemsValue();
+        OrderStateRepository currentRepo = getCurrentStateRepository();
+        OrderEntity currentOrderData = currentRepo.getCurrentOrderValue();
+        List<OrderItemEntity> currentItemsData = currentRepo.getCurrentOrderItemsValue();
 
-        if (order != null && items != null && !items.isEmpty()) {
-            // Get current customer ID to clear state later
-            final long customerId = order.getCustomerId();
-            final long userId = order.getUserId();
-
-            Log.d(TAG, "Confirming order - customer=" + customerId + ", user=" + userId +
-                    ", total=" + order.getTotal() + ", items=" + items.size());
-
-            // Ensure the order and all items have valid IDs
-            if (order.getCustomerId() <= 0 || order.getUserId() <= 0) {
-                Log.e(TAG, "Cannot confirm order: invalid customer ID (" + order.getCustomerId() +
-                        ") or user ID (" + order.getUserId() + ")");
-                mainHandler.post(() -> {
-                    Toast.makeText(getApplication(), "Cannot save order: missing customer or user ID",
-                            Toast.LENGTH_LONG).show();
-                });
-                return;
-            }
-
-            // Create a final reference to the items to be used in callback
-            final List<OrderItemEntity> finalItems = new ArrayList<>(items);
-
-            orderRepository.insertOrderAndGetId(order, new OrderRepository.OnOrderIdResultCallback() {
-                @Override
-                public void onResult(long orderId) {
-                    if (orderId > 0) {
-                        Log.d(TAG, "Order saved with ID: " + orderId + ", now saving order items");
-
-                        // Set the order ID properly for logging
-                        order.setOrderId(orderId);
-
-                        // Save any pending changes to existing items first
-                        for (OrderItemEntity item : finalItems) {
-                            // Update existing items in the database
-                            if (item.getOrderId() != null && item.getOrderId() > 0) {
-                                Log.d(TAG, "Updating existing order item: " + item.getItemId() +
-                                        ", product=" + item.getProductName() +
-                                        ", quantity=" + item.getQuantity());
-//                                orderRepository.updateOrderItem(item);
-                                orderItemRepository.insertOrderItem(item);
-                            } else {
-                                // Set order ID for new items
-                                Log.d(TAG, "Setting orderId=" + orderId + " for item: " + item.getItemId() +
-                                        ", product=" + item.getProductName() +
-                                        ", quantity=" + item.getQuantity());
-                                item.setOrderId(orderId);
-//                                orderRepository.insertOrderItem(item);
-                                orderItemRepository.insertOrderItem(item);
-                            }
-                        }
-
-                        Log.d(TAG, "All items saved for order #" + orderId + ": " + finalItems.size()
-                                + " items with total " + order.getTotal());
-
-                        // Display confirmation message
-                        mainHandler.post(() -> {
-                            Toast.makeText(getApplication(), "Order #" + orderId + " saved successfully",
-                                    Toast.LENGTH_SHORT).show();
-                        });
-
-                        // We're in a background thread here, need to handle this properly
-                        // Instead of resetting, create a new session
-                        mainHandler.post(() -> {
-                            Log.d(TAG, "Creating new order session for user: " + userId);
-                            // Create a completely new repository for the next order
-                            sessionManager.createNewSession(userId);
-
-                            // Instead of reassigning stateRepository, access the current one from the
-                            // session manager
-                            // and update its values directly
-                            OrderStateRepository currentRepo = sessionManager.getCurrentRepository();
-
-                            // Get the new empty order and items
-                            OrderEntity newEmptyOrder = currentRepo.getCurrentOrderValue();
-                            List<OrderItemEntity> newEmptyItems = currentRepo.getCurrentOrderItemsValue();
-
-                            Log.d(TAG, "New order session created - orderId=" +
-                                    (newEmptyOrder != null ? newEmptyOrder.getOrderId() : "null") +
-                                    ", userId=" + (newEmptyOrder != null ? newEmptyOrder.getUserId() : "null") +
-                                    ", customerId=" + (newEmptyOrder != null ? newEmptyOrder.getCustomerId() : "null") +
-                                    ", total=" + (newEmptyOrder != null ? newEmptyOrder.getTotal() : "null"));
-
-                            // Update our state repository with these values
-                            if (newEmptyOrder != null) {
-                                stateRepository.setCurrentOrder(newEmptyOrder);
-                            }
-                            if (newEmptyItems != null) {
-                                stateRepository.setCurrentOrderItems(newEmptyItems);
-                            }
-                        });
-                    } else {
-                        Log.e(TAG, "Failed to insert order, returned ID was 0 or negative");
-                        mainHandler.post(() -> {
-                            Toast.makeText(getApplication(), "Error saving order", Toast.LENGTH_SHORT).show();
-                        });
-                    }
-                }
-            });
-        } else {
-            Log.w(TAG, "Cannot confirm order: " +
-                    (order == null ? "order is null" : (items == null ? "items is null" : "items is empty")));
-        }
-    }
-
-    /**
-     * Confirms the order and executes a callback after the order has been saved
-     */
-    public void confirmOrderAndThen(Runnable callback) {
-        OrderEntity order = stateRepository.getCurrentOrderValue();
-        List<OrderItemEntity> items = stateRepository.getCurrentOrderItemsValue();
-
-        if (order != null && items != null && !items.isEmpty()) {
-            // Get current user ID to create new session later
-            final long userId = order.getUserId();
-            final long customerId = order.getCustomerId();
-
-            Log.d(TAG, "Confirming order (with callback) - customer=" + customerId +
-                    ", user=" + userId + ", total=" + order.getTotal() + ", items=" + items.size());
-
-            // Create a final reference to the items to be used in callback
-            final List<OrderItemEntity> finalItems = new ArrayList<>(items);
-            final Runnable safeCallback = callback; // Keep a final reference
-
-            orderRepository.insertOrderAndGetId(order, new OrderRepository.OnOrderIdResultCallback() {
-                @Override
-                public void onResult(long orderId) {
-                    if (orderId > 0) {
-                        Log.d(TAG, "Order confirmed with ID: " + orderId);
-
-                        // Set the order ID in the current order (for printing)
-                        order.setOrderId(orderId);
-                        stateRepository.setCurrentOrder(order);
-
-                        // Save any pending changes to existing items first
-                        for (OrderItemEntity item : finalItems) {
-                            // Update existing items in the database
-                            if (item.getOrderId() != null && item.getOrderId() > 0) {
-                                Log.d(TAG, "Updating existing order item: " + item.getItemId() +
-                                        ", product=" + item.getProductName() +
-                                        ", quantity=" + item.getQuantity());
-//                                orderRepository.updateOrderItem(item);
-                                orderItemRepository.updateOrderItem(item);
-                            } else {
-                                // Set order ID for new items
-                                Log.d(TAG, "Setting orderId=" + orderId + " for item: " + item.getItemId() +
-                                        ", product=" + item.getProductName() +
-                                        ", quantity=" + item.getQuantity());
-                                item.setOrderId(orderId);
-//                                orderRepository.insertOrderItem(item);
-                                orderItemRepository.updateOrderItem(item);
-                            }
-                        }
-
-                        // Execute the callback (e.g., for printing)
-                        if (safeCallback != null) {
-                            Log.d(TAG, "Executing post-confirmation callback");
-                            safeCallback.run();
-                        } else {
-                            Log.w(TAG, "Callback is null, not executing post-confirmation actions");
-                        }
-
-                        // After the callback is done, create a new session
-                        mainHandler.post(() -> {
-                            Log.d(TAG, "Creating new order session for user: " + userId);
-                            // Create a completely new repository for the next order
-                            sessionManager.createNewSession(userId);
-
-                            // Get the new repository and update our state with its values
-                            OrderStateRepository currentRepo = sessionManager.getCurrentRepository();
-                            OrderEntity newEmptyOrder = currentRepo.getCurrentOrderValue();
-                            List<OrderItemEntity> newEmptyItems = currentRepo.getCurrentOrderItemsValue();
-
-                            Log.d(TAG, "New order session created - orderId=" +
-                                    (newEmptyOrder != null ? newEmptyOrder.getOrderId() : "null") +
-                                    ", userId=" + (newEmptyOrder != null ? newEmptyOrder.getUserId() : "null") +
-                                    ", customerId=" + (newEmptyOrder != null ? newEmptyOrder.getCustomerId() : "null") +
-                                    ", total=" + (newEmptyOrder != null ? newEmptyOrder.getTotal() : "null"));
-
-                            // Update our state repository with these values to refresh the UI
-                            if (newEmptyOrder != null) {
-                                stateRepository.setCurrentOrder(newEmptyOrder);
-                            }
-                            if (newEmptyItems != null) {
-                                stateRepository.setCurrentOrderItems(newEmptyItems);
-                            }
-                        });
-                    } else {
-                        Log.e(TAG, "Failed to insert order, returned ID was 0 or negative");
-                        mainHandler.post(() -> {
-                            Toast.makeText(getApplication(), "Error saving order", Toast.LENGTH_SHORT).show();
-                        });
-
-                        // Still call the callback if it exists
-                        if (safeCallback != null) {
-                            Log.d(TAG, "Executing callback despite order insert failure");
-                            safeCallback.run();
-                        }
-                    }
-                }
-            });
-        } else {
-            Log.w(TAG, "Cannot confirm order with callback: " +
-                    (order == null ? "order is null" : (items == null ? "items is null" : "items is empty")));
-
-            // If there's no valid order, just run the callback
-            if (callback != null) {
-                Log.d(TAG, "Executing callback without order confirmation");
-                callback.run();
-            } else {
-                Log.w(TAG, "Callback is null, nothing to do");
-            }
-        }
-    }
-
-    /**
-     * Recalculates the total for the current order based on all order items
-     */
-    public void updateOrderTotal() {
-        OrderEntity order = stateRepository.getCurrentOrderValue();
-        List<OrderItemEntity> items = stateRepository.getCurrentOrderItemsValue();
-
-        if (order != null && items != null) {
-            double oldTotal = order.getTotal();
-            double total = 0.0;
-
-            // Sum up the price of all items (quantity * sellPrice)
-            for (OrderItemEntity item : items) {
-                double itemTotal = item.getQuantity() * item.getSellPrice();
-                total += itemTotal;
-                Log.d(TAG, "Item total calculation: " + item.getProductName() +
-                        ", quantity=" + item.getQuantity() +
-                        ", price=" + item.getSellPrice() +
-                        ", subtotal=" + itemTotal);
-            }
-
-            // Ensure total is never negative - for business purposes
-            if (total < 0) {
-                Log.w(TAG, "Calculated negative total: " + total + ". Setting to 0.");
-                total = 0.0;
-            }
-
-            // Update the order total
-            order.setTotal(total);
-            Log.d(TAG, "Order total recalculated: " + oldTotal + " -> " + total +
-                    " (difference: " + (total - oldTotal) + ")");
-
-            stateRepository.setCurrentOrder(order);
-        } else {
-            Log.w(TAG, "Cannot update order total: " +
-                    (order == null ? "order is null" : "items is null"));
-        }
-    }
-
-    /**
-     * Force refresh the items in the repository to ensure they're not lost
-     * This is needed in some cases where the repository might lose items during
-     * state transitions
-     *
-     * @param items The items to set in the repository
-     */
-    public void refreshItems(List<OrderItemEntity> items) {
-        if (items == null) {
-            Log.w(TAG, "Cannot refresh items: items list is null");
+        if (currentOrderData == null || currentItemsData == null || currentItemsData.isEmpty()) {
+            Log.w(TAG, "Cannot confirm order: order or items are null/empty.");
+            mainHandler.post(() -> Toast.makeText(getApplication(), "Cannot save empty order.", Toast.LENGTH_SHORT).show());
             return;
         }
 
-        // Create a copy to ensure we don't modify the original list
-        List<OrderItemEntity> itemsCopy = new ArrayList<>(items);
-        Log.d(TAG, "Refreshing " + itemsCopy.size() + " items in repository");
+        final long userId = currentOrderData.getUserId();
+        final long customerId = currentOrderData.getCustomerId();
+        final double calculatedTotal = calculateTotalFromItems(currentItemsData); // Use fresh total
 
-        // Explicitly set the items in the repository to ensure they're not lost
-        stateRepository.setCurrentOrderItems(itemsCopy);
+        Log.d(TAG, "Confirming order - Customer: " + customerId + ", User: " + userId +
+                ", Calculated Total: " + calculatedTotal + ", Items: " + currentItemsData.size());
 
-        // Make sure the total is updated to reflect these items
-        updateOrderTotal();
+        if (customerId <= 0 || userId <= 0) {
+            Log.e(TAG, "Cannot confirm order: invalid customer ID (" + customerId +
+                    ") or user ID (" + userId + ")");
+            mainHandler.post(() -> Toast.makeText(getApplication(), "Error: Missing customer or user for the order.", Toast.LENGTH_LONG).show());
+            return;
+        }
 
-        // Log the state after refresh to verify
-        OrderEntity order = stateRepository.getCurrentOrderValue();
-        List<OrderItemEntity> currentItems = stateRepository.getCurrentOrderItemsValue();
+        // Create a fresh OrderEntity for insertion to avoid side effects with LiveData object
+        OrderEntity orderToInsert = new OrderEntity(
+                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date()),
+                calculatedTotal,
+                customerId,
+                userId
+        ); // orderId will be 0, DAO will generate
 
-        Log.d(TAG, "After refresh - items count: " + (currentItems != null ? currentItems.size() : 0) +
-                ", total: " + (order != null ? order.getTotal() : "null"));
+        final List<OrderItemEntity> finalItemsToSaveInDb = new ArrayList<>();
+        for (OrderItemEntity sessionItem : currentItemsData) {
+            // Create fresh DB-bound items. Set itemId to 0 for Room to auto-generate.
+            OrderItemEntity dbItem = new OrderItemEntity(0, sessionItem.getBarcode());
+            dbItem.setProductId(sessionItem.getProductId());
+            dbItem.setProductName(sessionItem.getProductName());
+            dbItem.setBuyPrice(sessionItem.getBuyPrice());
+            dbItem.setSellPrice(sessionItem.getSellPrice());
+            dbItem.setQuantity(sessionItem.getQuantity());
+            // orderId will be set after orderToInsert is saved
+            finalItemsToSaveInDb.add(dbItem);
+        }
+
+        orderRepository.insertOrderAndGetId(orderToInsert, orderId -> {
+            if (orderId > 0) {
+                Log.d(TAG, "Order saved with DB ID: " + orderId + ". Saving items.");
+                for (OrderItemEntity dbItemToSave : finalItemsToSaveInDb) {
+                    dbItemToSave.setOrderId(orderId); // Link item to the new order ID
+                    orderItemRepository.insertOrderItem(dbItemToSave);
+                }
+                Log.d(TAG, "All " + finalItemsToSaveInDb.size() + " items saved for order #" + orderId);
+                mainHandler.post(() -> Toast.makeText(getApplication(), "Order #" + orderId + " saved successfully.", Toast.LENGTH_SHORT).show());
+
+                mainHandler.post(() -> {
+                    Log.d(TAG, "Order confirmed. Creating new order session for user: " + userId);
+                    sessionManager.createNewSession(userId);
+                    observeCurrentSessionData(); // Crucial: Re-bridge LiveData to the new session
+                });
+            } else {
+                Log.e(TAG, "Failed to insert order into database, returned ID was " + orderId);
+                mainHandler.post(() -> Toast.makeText(getApplication(), "Error saving order.", Toast.LENGTH_SHORT).show());
+            }
+        });
+    }
+
+    public void confirmOrderAndThen(Runnable callback) {
+        OrderStateRepository currentRepo = getCurrentStateRepository();
+        OrderEntity currentOrderData = currentRepo.getCurrentOrderValue();
+        List<OrderItemEntity> currentItemsData = currentRepo.getCurrentOrderItemsValue();
+
+        if (currentOrderData == null || currentItemsData == null || currentItemsData.isEmpty()) {
+            Log.w(TAG, "confirmOrderAndThen: No order or items to confirm.");
+            mainHandler.post(() -> Toast.makeText(getApplication(), "No items to confirm for printing.", Toast.LENGTH_SHORT).show());
+            if (callback != null)
+                mainHandler.post(callback); // Run callback if any, e.g., to close a dialog
+            return;
+        }
+
+        final long userId = currentOrderData.getUserId();
+        final long customerId = currentOrderData.getCustomerId();
+        final double calculatedTotal = calculateTotalFromItems(currentItemsData);
+
+        Log.d(TAG, "Confirming order (then callback) - Customer: " + customerId + ", User: " + userId +
+                ", Total: " + calculatedTotal + ", Items: " + currentItemsData.size());
+
+        if (customerId <= 0 || userId <= 0) {
+            Log.e(TAG, "confirmOrderAndThen: Invalid customer/user ID.");
+            mainHandler.post(() -> Toast.makeText(getApplication(), "Error: Missing customer or user.", Toast.LENGTH_LONG).show());
+            if (callback != null) mainHandler.post(callback);
+            return;
+        }
+
+        OrderEntity orderToInsert = new OrderEntity(
+                new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date()),
+                calculatedTotal, customerId, userId
+        );
+
+        final List<OrderItemEntity> finalItemsToSaveInDb = new ArrayList<>();
+        for (OrderItemEntity sessionItem : currentItemsData) {
+            OrderItemEntity dbItem = new OrderItemEntity(0, sessionItem.getBarcode()); // itemId = 0 for insert
+            dbItem.setProductId(sessionItem.getProductId());
+            dbItem.setProductName(sessionItem.getProductName());
+            dbItem.setBuyPrice(sessionItem.getBuyPrice());
+            dbItem.setSellPrice(sessionItem.getSellPrice());
+            dbItem.setQuantity(sessionItem.getQuantity());
+            finalItemsToSaveInDb.add(dbItem);
+        }
+
+        orderRepository.insertOrderAndGetId(orderToInsert, orderId -> {
+            if (orderId > 0) {
+                Log.d(TAG, "Order (then callback) saved with ID: " + orderId);
+                // Update the order object in the *current session* with the new ID for printing
+                // This is okay because this session is about to be replaced.
+                currentOrderData.setOrderId(orderId);
+                currentOrderData.setTotal(calculatedTotal); // Ensure it has the final total for printing
+                currentRepo.setCurrentOrder(currentOrderData); // Update for potential immediate use by callback
+
+                for (OrderItemEntity dbItem : finalItemsToSaveInDb) {
+                    dbItem.setOrderId(orderId);
+                    orderItemRepository.insertOrderItem(dbItem);
+                }
+
+                if (callback != null) {
+                    Log.d(TAG, "Executing post-confirmation callback.");
+                    mainHandler.post(callback); // Ensure callback runs on main thread
+                }
+
+                mainHandler.post(() -> {
+                    Log.d(TAG, "Order confirmed (then callback). Creating new session for user: " + userId);
+                    sessionManager.createNewSession(userId);
+                    observeCurrentSessionData(); // Re-bridge LiveData
+                });
+            } else {
+                Log.e(TAG, "Failed to insert order (then callback), returned ID: " + orderId);
+                mainHandler.post(() -> Toast.makeText(getApplication(), "Error saving order for printing.", Toast.LENGTH_SHORT).show());
+                if (callback != null) mainHandler.post(callback); // Still run callback
+            }
+        });
     }
 
 
-    /**
-     * Internal implementation of resetCurrentOrder that must be called on the main
-     * thread
-     */
-    public void resetCurrentOrderInternal() {
-        // Get current user ID
-        long userId = 0;
-        OrderEntity currentOrder = stateRepository.getCurrentOrderValue();
-        if (currentOrder != null) {
-            userId = currentOrder.getUserId();
+    public void updateOrderTotal() { // This can be called if external logic changes items directly
+        OrderStateRepository currentRepo = getCurrentStateRepository();
+        OrderEntity order = currentRepo.getCurrentOrderValue();
+        List<OrderItemEntity> items = currentRepo.getCurrentOrderItemsValue();
+        if (order != null) {
+            double newTotal = calculateTotalFromItems(items);
+            if (Math.abs(order.getTotal() - newTotal) > 0.001) {
+                order.setTotal(newTotal);
+                currentRepo.setCurrentOrder(order); // This will trigger LiveData update
+            }
         }
+    }
 
-        // Create a new session with the current user ID
+    // refreshItems might not be needed if LiveData from session is always the source of truth.
+    // public void refreshItems(List<OrderItemEntity> items) { ... }
+
+
+    public void resetCurrentOrderInternal() {
+        OrderStateRepository currentRepo = getCurrentStateRepository();
+        long userId = 0;
+        OrderEntity currentOrder = currentRepo.getCurrentOrderValue();
+        if (currentOrder != null) userId = currentOrder.getUserId();
+
+        Log.d(TAG, "Resetting current order session. Creating new session for user ID: " + userId);
         sessionManager.createNewSession(userId);
+        observeCurrentSessionData(); // Re-bridge LiveData to the new session
     }
 
     @Override
     protected void onCleared() {
         super.onCleared();
-        // Shut down the executor when ViewModel is cleared
-        if (!executor.isShutdown()) {
+        // Remove observers from the session's LiveData
+        if (sessionOrderObserver != null && currentSessionOrderLiveDataInternal != null) {
+            currentSessionOrderLiveDataInternal.removeObserver(sessionOrderObserver);
+        }
+        if (sessionItemsObserver != null && currentSessionItemsLiveDataInternal != null) {
+            currentSessionItemsLiveDataInternal.removeObserver(sessionItemsObserver);
+        }
+
+        if (executor != null && !executor.isShutdown()) {
             executor.shutdown();
         }
+        mainHandler.removeCallbacksAndMessages(null);
+        Log.d(TAG, "CurrentOrderViewModel cleared.");
     }
 }

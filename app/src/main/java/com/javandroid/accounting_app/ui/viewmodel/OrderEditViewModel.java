@@ -4,275 +4,198 @@ import android.app.Application;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.widget.Toast; // For user feedback within ViewModel (consider moving to Fragment)
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
-import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProvider;
 
 import com.javandroid.accounting_app.data.model.OrderEntity;
 import com.javandroid.accounting_app.data.model.OrderItemEntity;
+import com.javandroid.accounting_app.data.model.ProductEntity; // Needed for stock adjustment
 import com.javandroid.accounting_app.data.repository.OrderItemRepository;
 import com.javandroid.accounting_app.data.repository.OrderRepository;
-import com.javandroid.accounting_app.data.repository.OrderStateRepository;
+import com.javandroid.accounting_app.data.repository.ProductRepository; // To adjust stock
 import com.javandroid.accounting_app.data.repository.OrderSessionManager;
+import com.javandroid.accounting_app.data.repository.OrderStateRepository;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * ViewModel responsible for handling the editing of existing orders
- */
 public class OrderEditViewModel extends AndroidViewModel {
     private static final String TAG = "OrderEditViewModel";
 
     private final OrderRepository orderRepository;
-    public final OrderItemRepository orderItemRepository;
-    private final OrderSessionManager sessionManager;
-    private OrderStateRepository stateRepository;
-    private final CurrentOrderViewModel currentOrderViewModel;
+    public final OrderItemRepository orderItemRepository; // Made public final in previous updates
+    private final ProductRepository productRepository;   // For stock updates
+    private final OrderSessionManager sessionManager;    // For shared state logic if any remains
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
-
-    // Event to signal when order is empty/deleted
-    private final MutableLiveData<Boolean> orderEmptyEvent = new MutableLiveData<>();
+    private final Handler mainThreadHandler = new Handler(Looper.getMainLooper());
 
     public OrderEditViewModel(@NonNull Application application) {
         super(application);
         orderRepository = new OrderRepository(application);
         orderItemRepository = new OrderItemRepository(application);
+        productRepository = new ProductRepository(application); // Initialize ProductRepository
         sessionManager = OrderSessionManager.getInstance();
-        stateRepository = sessionManager.getCurrentRepository();
-        currentOrderViewModel = new ViewModelProvider.AndroidViewModelFactory(application)
-                .create(CurrentOrderViewModel.class);
     }
 
-    /**
-     * Gets the current state repository from the session manager
-     * This ensures we're always using the most up-to-date repository
-     */
-    private OrderStateRepository getStateRepository() {
-        // Update the reference to the current repository
-        stateRepository = sessionManager.getCurrentRepository();
-        return stateRepository;
+    private OrderStateRepository getStateRepository() { // For any shared state operations
+        return sessionManager.getCurrentRepository();
     }
 
-    /**
-     * Set an existing order for editing
-     */
-// javandroid0/accounting/accounting-464a9036ea8d12d8e160ef3e5b0a317095287d4e/app/src/main/java/com/javandroid/accounting_app/ui/viewmodel/OrderEditViewModel.java
     public void setEditingOrder(OrderEntity order) {
-        Log.d(TAG, "Setting order for editing: ID=" + (order != null ? order.getOrderId() : "null"));
+        Log.d(TAG, "Setting order for editing (shared state): ID=" + (order != null ? order.getOrderId() : "null"));
+        OrderStateRepository currentSharedRepo = getStateRepository();
         if (order == null) {
-            getStateRepository().setCurrentOrder(null); // Or handle as an empty order
-            getStateRepository().setCurrentOrderItems(new ArrayList<>());
+            currentSharedRepo.setCurrentOrder(null);
+            currentSharedRepo.setCurrentOrderItems(new ArrayList<>());
             return;
         }
 
-        getStateRepository().setCurrentOrder(order);
+        currentSharedRepo.setCurrentOrder(order);
 
         if (order.getOrderId() > 0) {
             LiveData<List<OrderItemEntity>> itemsLiveData = orderItemRepository.getOrderItems(order.getOrderId());
-
-            // It's good practice to define the observer separately to ensure 'this' in removeObserver is correct.
-            Observer<List<OrderItemEntity>> itemsObserver = new Observer<List<OrderItemEntity>>() {
+            itemsLiveData.observeForever(new androidx.lifecycle.Observer<List<OrderItemEntity>>() {
                 @Override
                 public void onChanged(List<OrderItemEntity> orderItems) {
                     if (orderItems != null) {
-                        Log.d(TAG, "Loaded " + orderItems.size() + " items for order ID=" + order.getOrderId());
-                        getStateRepository().setCurrentOrderItems(orderItems);
+                        Log.d(TAG, "Loaded " + orderItems.size() + " items for order ID=" + order.getOrderId() + " into shared state");
+                        currentSharedRepo.setCurrentOrderItems(orderItems);
                     } else {
-                        Log.w(TAG, "No items found for order ID=" + order.getOrderId());
-                        getStateRepository().setCurrentOrderItems(new ArrayList<>());
+                        currentSharedRepo.setCurrentOrderItems(new ArrayList<>());
                     }
-                    // Remove observer after use to prevent memory leaks and unwanted future updates
-                    itemsLiveData.removeObserver(this); // 'this' refers to this specific Observer instance
+                    itemsLiveData.removeObserver(this);
                 }
-            };
-            itemsLiveData.observeForever(itemsObserver);
+            });
         } else {
-            // For a new order (orderId <= 0) or invalid order, set empty items
-            getStateRepository().setCurrentOrderItems(new ArrayList<>());
+            currentSharedRepo.setCurrentOrderItems(new ArrayList<>());
         }
     }
-// javandroid0/accounting/accounting-464a9036ea8d12d8e160ef3e5b0a317095287d4e/app/src/main/java/com/javandroid/accounting_app/ui/viewmodel/OrderEditViewModel.java
 
-    /**
-     * Cancel editing. This should reset the shared state to a new order state.
-     */
-    public void cancelOrderEditing() {
-        OrderEntity currentOrderValue = getStateRepository().getCurrentOrderValue();
-        long userIdForNewSession = 0;
-        if (currentOrderValue != null) {
-            userIdForNewSession = currentOrderValue.getUserId(); // Preserve user for the new session
+    public void saveModifiedOrderAndItems(
+            OrderEntity editedOrder,
+            List<OrderItemEntity> currentItemsInEdit,
+            List<OrderItemEntity> originalItemsFromDb, // Snapshot of items before edit began
+            Runnable onComplete) {
+
+        if (editedOrder == null || editedOrder.getOrderId() <= 0) {
+            Log.e(TAG, "Cannot save: Invalid OrderEntity or orderId.");
+            mainThreadHandler.post(() -> {
+                Toast.makeText(getApplication(), "Error: Invalid order data.", Toast.LENGTH_SHORT).show();
+                if (onComplete != null) onComplete.run(); // Signal completion even on error
+            });
+            return;
         }
-        Log.d(TAG, "Canceling edits. Resetting to new order session for user ID: " + userIdForNewSession);
 
-        // Delegate the reset to CurrentOrderViewModel, which calls OrderSessionManager.createNewSession()
-        // This ensures the shared OrderStateRepository is replaced with a fresh one.
-        currentOrderViewModel.resetCurrentOrderInternal();
+        Log.d(TAG, "Saving modified order ID: " + editedOrder.getOrderId() + ". Edited items: " + currentItemsInEdit.size() + ", Original DB items: " + originalItemsFromDb.size());
 
-        // Note: resetCurrentOrder in CurrentOrderViewModel should ideally use the correct current user ID.
-        // If userIdForNewSession is more reliable here, CurrentOrderViewModel's reset method
-        // might need to accept a userId or fetch it reliably.
+        executor.execute(() -> {
+            try {
+                // --- 1. Update the Order Header ---
+                orderRepository.updateOrder(editedOrder);
+                Log.d(TAG, "Order header updated for ID: " + editedOrder.getOrderId());
 
-        // No need to clearAllStoredOrders() from the stateRepository if the repository instance itself is replaced.
-        // The old instance will be garbage collected if no longer referenced.
-    }
-    /**
-     * Cancel editing and reload the original order from the database
+                // --- 2. Calculate Stock Adjustments ---
+                // Map<ProductId, NetQuantityChange>
+                Map<Long, Double> productStockAdjustments = new HashMap<>();
 
-     public void cancelOrderEditing() {
-     OrderEntity currentOrderValue = getStateRepository().getCurrentOrderValue();
-     if (currentOrderValue != null && currentOrderValue.getOrderId() > 0) {
-     // This is an existing order, reload it from database to discard changes
-     long orderId = currentOrderValue.getOrderId();
-     Log.d(TAG, "Canceling edits for order ID: " + orderId);
-
-     // Use a one-time observer to load the original order
-     final androidx.lifecycle.Observer<OrderEntity> orderObserver = new androidx.lifecycle.Observer<OrderEntity>() {
-    @Override public void onChanged(OrderEntity order) {
-    if (order != null) {
-    Log.d(TAG, "Reloaded order from DB: " + order.getOrderId() +
-    ", total: " + order.getTotal());
-    getStateRepository().setCurrentOrder(order);
-    // Remove observer after use to prevent memory leaks
-    orderRepository.getOrderById(orderId).removeObserver(this);
-
-    // Also reload items
-    final androidx.lifecycle.Observer<List<OrderItemEntity>> itemsObserver = new androidx.lifecycle.Observer<List<OrderItemEntity>>() {
-    @Override public void onChanged(List<OrderItemEntity> items) {
-    if (items != null) {
-    Log.d(TAG, "Reloaded " + items.size() + " items for order ID: " + orderId);
-    getStateRepository().setCurrentOrderItems(items);
-    } else {
-    Log.d(TAG, "No items loaded for order ID: " + orderId);
-    }
-    // Remove observer after use
-    //                                orderRepository.getOrderItems(orderId).removeObserver(this);
-    orderItemRepository.getOrderItems(orderId).removeObserver(this);
-    }
-    };
-
-    // Start observing items
-    //                        orderRepository.getOrderItems(orderId).observeForever(itemsObserver);
-    orderItemRepository.getOrderItems(orderId).observeForever(itemsObserver);
-    } else {
-    Log.w(TAG, "Failed to reload order: " + orderId + " (returned null)");
-    }
-    }
-    };
-
-     // Start observing order
-     orderRepository.getOrderById(orderId).observeForever(orderObserver);
-     } else {
-     // This is a new order, just reset it
-     Log.d(TAG, "Canceling edits for NEW order (orderId=0)");
-     currentOrderViewModel.resetCurrentOrder();
-     }
-
-     // Clear ALL cached order data
-     getStateRepository().clearAllStoredOrders();
-     }
-
-     */
-
-    /**
-     * Save changes to an existing order
-     */
-    public void saveOrderChanges() {
-        OrderStateRepository repo = getStateRepository();
-        OrderEntity order = repo.getCurrentOrderValue();
-        List<OrderItemEntity> items = repo.getCurrentOrderItemsValue();
-
-        if (order != null && order.getOrderId() > 0 && items != null) {
-            Log.d(TAG, "Saving changes for order ID: " + order.getOrderId() +
-                    ", items: " + items.size() +
-                    ", total: " + order.getTotal());
-
-            // First update the order itself
-            orderRepository.updateOrder(order);
-
-            // Log each item being saved
-            for (OrderItemEntity item : items) {
-                if (item.getOrderId() != null && item.getOrderId() > 0) {
-                    // Update existing items
-                    Log.d(TAG, "Updating existing item: " + item.getItemId() +
-                            ", orderId: " + item.getOrderId() +
-                            ", product: " + item.getProductName() +
-                            ", quantity: " + item.getQuantity());
-//                    orderRepository.updateOrderItem(item);
-                    orderItemRepository.updateOrderItem(item);
-                } else {
-                    // This is a new item for an existing order
-                    Log.d(TAG, "Adding new item to existing order: " +
-                            "tempId: " + item.getItemId() +
-                            ", product: " + item.getProductName() +
-                            ", quantity: " + item.getQuantity());
-                    item.setOrderId(order.getOrderId());
-//                    orderRepository.insertOrderItem(item);
-                    orderItemRepository.insertOrderItem(item);
+                // Process original items to see what was returned to stock or initially taken
+                for (OrderItemEntity originalItem : originalItemsFromDb) {
+                    if (originalItem.getProductId() != null && originalItem.getProductId() > 0) {
+                        // Quantity from original item effectively "returned to stock" before new quantities are "taken"
+                        productStockAdjustments.put(originalItem.getProductId(),
+                                productStockAdjustments.getOrDefault(originalItem.getProductId(), 0.0) + originalItem.getQuantity());
+                    }
                 }
+                // Process edited items to see what is being "taken from stock"
+                for (OrderItemEntity editedItem : currentItemsInEdit) {
+                    if (editedItem.getProductId() != null && editedItem.getProductId() > 0) {
+                        // Quantity from edited item is "taken from stock"
+                        productStockAdjustments.put(editedItem.getProductId(),
+                                productStockAdjustments.getOrDefault(editedItem.getProductId(), 0.0) - editedItem.getQuantity());
+                    }
+                }
+
+                // --- 3. Reconcile Order Items in DB ---
+                List<OrderItemEntity> itemsToDeleteFromDb = new ArrayList<>(originalItemsFromDb);
+
+                for (OrderItemEntity editedItem : currentItemsInEdit) {
+                    editedItem.setOrderId(editedOrder.getOrderId());
+                    boolean foundInOriginalDb = false;
+                    for (int i = 0; i < itemsToDeleteFromDb.size(); i++) {
+                        if (itemsToDeleteFromDb.get(i).getItemId() == editedItem.getItemId()) {
+                            orderItemRepository.updateOrderItem(editedItem);
+                            Log.d(TAG, "Updated item ID: " + editedItem.getItemId() + " (" + editedItem.getProductName() + ")");
+                            itemsToDeleteFromDb.remove(i);
+                            foundInOriginalDb = true;
+                            break;
+                        }
+                    }
+                    if (!foundInOriginalDb) { // New item added during this edit session
+                        // Ensure itemId is 0 or less for the DAO to auto-generate a new primary key
+                        if (editedItem.getItemId() > 0) { // If it had a positive ID but wasn't in original, it's new to THIS order context
+                            editedItem.setItemId(0); // Force insert
+                        }
+                        orderItemRepository.insertOrderItem(editedItem);
+                        Log.d(TAG, "Inserted new item: " + editedItem.getProductName() + " for order " + editedOrder.getOrderId());
+                    }
+                }
+                for (OrderItemEntity itemToRemove : itemsToDeleteFromDb) {
+                    orderItemRepository.deleteOrderItem(itemToRemove);
+                    Log.d(TAG, "Deleted item ID: " + itemToRemove.getItemId() + " (" + itemToRemove.getProductName() + ") from order " + editedOrder.getOrderId());
+                }
+                Log.d(TAG, "Order items reconciled for order ID: " + editedOrder.getOrderId());
+
+                // --- 4. Apply Stock Adjustments ---
+                for (Map.Entry<Long, Double> entry : productStockAdjustments.entrySet()) {
+                    Long productId = entry.getKey();
+                    Double netStockChange = entry.getValue(); // Positive means stock increases (items returned > items taken)
+                    // Negative means stock decreases (items taken > items returned)
+                    ProductEntity product = productRepository.getProductByIdSync(productId); // Fetch current product
+                    if (product != null) {
+                        Log.d(TAG, "Stock for " + product.getName() + " (ID:" + productId + "): current=" + product.getStock() + ", net change required=" + (-netStockChange));
+                        product.setStock(product.getStock() - netStockChange); // If netStockChange is +ve (returned), stock increases. If -ve (taken), stock decreases.
+                        productRepository.update(product);
+                        Log.d(TAG, "Product ID " + productId + " stock updated to: " + product.getStock());
+                    } else {
+                        Log.w(TAG, "Product ID " + productId + " not found for stock adjustment.");
+                    }
+                }
+                Log.d(TAG, "Product stock adjustments applied for order ID: " + editedOrder.getOrderId());
+
+                if (onComplete != null) {
+                    mainThreadHandler.post(onComplete);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error saving modified order and items for ID: " + editedOrder.getOrderId(), e);
+                mainThreadHandler.post(() -> {
+                    Toast.makeText(getApplication(), "Save failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    if (onComplete != null) onComplete.run(); // Notify completion even on error
+                });
             }
-
-            // Recalculate and save the total
-            currentOrderViewModel.updateOrderTotal();
-            orderRepository.updateOrder(order);
-
-            Log.d(TAG, "Saved all changes for order ID: " + order.getOrderId() +
-                    " with " + items.size() + " items, final total: " + order.getTotal());
-        } else {
-            Log.w(TAG, "Attempted to save changes without a valid order");
-        }
+        });
     }
 
-    /**
-     * Remove all observers for a specific order ID
 
-     public void cleanupOrderObservers(long orderId) {
-     Log.d(TAG, "Starting cleanup of observers for order ID: " + orderId);
-
-     // Get the LiveData for this order's items
-     LiveData<List<OrderItemEntity>> orderItemsLiveData = orderRepository.getOrderItems(orderId);
-
-
-     // Force remove all observers to prevent leaks and repeated loading
-     if (orderItemsLiveData instanceof MutableLiveData) {
-     // Clear internal observers - this is a way to force cleanup
-     try {
-     Field observersField = LiveData.class.getDeclaredField("mObservers");
-     observersField.setAccessible(true);
-     Object observers = observersField.get(orderItemsLiveData);
-     Method methodClear = observers.getClass().getDeclaredMethod("clear");
-     methodClear.setAccessible(true);
-     methodClear.invoke(observers);
-     Log.d(TAG, "Successfully cleaned up observers for order ID: " + orderId);
-     } catch (Exception e) {
-     Log.e(TAG, "Failed to clean up observers: " + e.getMessage(), e);
-     }
-     } else {
-     Log.w(TAG, "Could not clean observers for order ID: " + orderId +
-     " - LiveData is not MutableLiveData");
-     }
-     }
-     */
-
-    /**
-     * Get the event for order empty/deleted
-     */
-    public LiveData<Boolean> getOrderEmptyEvent() {
-        return orderEmptyEvent;
+    public void cancelOrderEditing() {
+        OrderStateRepository currentSharedRepo = getStateRepository();
+        OrderEntity currentOrderValue = currentSharedRepo.getCurrentOrderValue();
+        long userIdForNewSession = (currentOrderValue != null) ? currentOrderValue.getUserId() : 0;
+        Log.d(TAG, "Canceling edits in shared state. Resetting shared session for user ID: " + userIdForNewSession);
+        sessionManager.createNewSession(userIdForNewSession);
     }
 
     @Override
     protected void onCleared() {
         super.onCleared();
-        // Shut down the executor when ViewModel is cleared
         if (!executor.isShutdown()) {
             executor.shutdown();
         }

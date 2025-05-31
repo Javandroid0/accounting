@@ -4,6 +4,7 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
@@ -12,20 +13,18 @@ import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.javandroid.accounting_app.data.model.OrderItemEntity;
-import com.javandroid.accounting_app.databinding.ItemOrderEditorBinding;
+import com.javandroid.accounting_app.databinding.ItemOrderEditorBinding; // Assuming this layout is general enough
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
-/**
- * Specialized adapter for the ScanOrderFragment for creating new orders
- */
-public class ScanOrderAdapter extends ListAdapter<OrderItemEntity, RecyclerView.ViewHolder> {
+public class ScanOrderAdapter extends ListAdapter<OrderItemEntity, ScanOrderAdapter.OrderItemViewHolderScan> {
 
-    private final OnOrderItemChangeListener listener;
-    private List<OrderItemEntity> originalList;
-    private List<OrderItemEntity> filteredList;
-    private boolean isBinding = false;
+    private final OrderItemInteractionListener listener;
+    // private List<OrderItemEntity> originalList; // Not strictly needed if submitList handles it well
+    // private List<OrderItemEntity> filteredList; // Filter logic can be external or internal
+    private boolean isBindingInternal = false; // Renamed to avoid conflict if used elsewhere
     private static final String TAG = "ScanOrderAdapter";
 
     private static final DiffUtil.ItemCallback<OrderItemEntity> DIFF_CALLBACK = new DiffUtil.ItemCallback<OrderItemEntity>() {
@@ -42,148 +41,117 @@ public class ScanOrderAdapter extends ListAdapter<OrderItemEntity, RecyclerView.
         }
     };
 
-    public ScanOrderAdapter(OnOrderItemChangeListener listener) {
+    public ScanOrderAdapter(OrderItemInteractionListener listener) {
         super(DIFF_CALLBACK);
         this.listener = listener;
-        this.originalList = new ArrayList<>();
-        this.filteredList = new ArrayList<>();
     }
 
-    @Override
-    public void submitList(List<OrderItemEntity> list) {
-        if (list != null) {
-            originalList = new ArrayList<>(list);
-            super.submitList(new ArrayList<>(list));
-        } else {
-            originalList = new ArrayList<>();
-            super.submitList(null);
-        }
-    }
-
-    public void filter(String query) {
-        if (query == null || query.isEmpty()) {
-            submitList(originalList);
-            return;
-        }
-
-        filteredList = new ArrayList<>();
-        String lowerCaseQuery = query.toLowerCase().trim();
-
-        for (OrderItemEntity item : originalList) {
-            if (item.getProductName().toLowerCase().contains(lowerCaseQuery) ||
-                    item.getBarcode().toLowerCase().contains(lowerCaseQuery)) {
-                filteredList.add(item);
-            }
-        }
-        submitList(filteredList);
-    }
+    // submitList is inherited from ListAdapter
 
     @NonNull
     @Override
-    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public OrderItemViewHolderScan onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         ItemOrderEditorBinding binding = ItemOrderEditorBinding.inflate(
                 LayoutInflater.from(parent.getContext()), parent, false);
-        return new OrderItemViewHolder(binding);
+        return new OrderItemViewHolderScan(binding, listener);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull OrderItemViewHolderScan holder, int position) {
         OrderItemEntity item = getItem(position);
-        ((OrderItemViewHolder) holder).bind(item);
+        holder.bind(item);
     }
 
-    public interface OnOrderItemChangeListener {
-        void onQuantityChanged(OrderItemEntity item, double newQuantity);
-
-        void onPriceChanged(OrderItemEntity item, double newPrice);
-
-        void onDelete(OrderItemEntity item);
-    }
-
-    class OrderItemViewHolder extends RecyclerView.ViewHolder {
+    static class OrderItemViewHolderScan extends RecyclerView.ViewHolder {
         private final ItemOrderEditorBinding binding;
+        private final OrderItemInteractionListener listener;
         private OrderItemEntity currentItem;
         private TextWatcher quantityWatcher;
         private TextWatcher priceWatcher;
+        private boolean isCurrentlyBindingVH = false;
 
-        OrderItemViewHolder(ItemOrderEditorBinding binding) {
+
+        OrderItemViewHolderScan(ItemOrderEditorBinding binding, OrderItemInteractionListener listener) {
             super(binding.getRoot());
             this.binding = binding;
+            this.listener = listener;
+            setupStaticListeners();
+        }
 
-            // Instead of using a non-existent deleteButton, we'll use the decrease button
-            // for now
-            // as a temporary solution
+        private void setupStaticListeners() {
+            binding.decreaseButton.setOnClickListener(v -> {
+                if (currentItem != null) { // Always editable context for ScanOrder
+                    if (currentItem.getQuantity() <= 1) {
+                        listener.onDelete(currentItem);
+                    } else {
+                        double newQuantity = currentItem.getQuantity() - 1;
+                        isCurrentlyBindingVH = true;
+                        binding.quantityEdit.setText(String.format(Locale.US, "%.0f", newQuantity));
+                        updateDecreaseButtonAppearanceLocal(newQuantity);
+                        isCurrentlyBindingVH = false;
+                        listener.onQuantityChanged(currentItem, newQuantity);
+                    }
+                }
+            });
+
             binding.decreaseButton.setOnLongClickListener(v -> {
-                int position = getBindingAdapterPosition();
-                if (position != RecyclerView.NO_POSITION) {
-                    OrderItemEntity item = getItem(position);
-                    listener.onDelete(item);
+                if (currentItem != null) {
+                    listener.onDelete(currentItem);
                     return true;
                 }
                 return false;
             });
 
-            // Set up quantity adjustment with existing buttons
-            binding.decreaseButton.setOnClickListener(v -> {
-                int position = getBindingAdapterPosition();
-                if (position != RecyclerView.NO_POSITION) {
-                    OrderItemEntity item = getItem(position);
-                    double newQuantity = Math.max(0, item.getQuantity() - 1);
-                    binding.quantityEdit.setText(String.valueOf(newQuantity));
-                }
-            });
-
             binding.increaseButton.setOnClickListener(v -> {
-                int position = getBindingAdapterPosition();
-                if (position != RecyclerView.NO_POSITION) {
-                    OrderItemEntity item = getItem(position);
-                    double newQuantity = item.getQuantity() + 1;
-                    binding.quantityEdit.setText(String.valueOf(newQuantity));
+                if (currentItem != null) { // Always editable context
+                    double newQuantity = currentItem.getQuantity() + 1;
+                    isCurrentlyBindingVH = true;
+                    binding.quantityEdit.setText(String.format(Locale.US, "%.0f", newQuantity));
+                    updateDecreaseButtonAppearanceLocal(newQuantity);
+                    isCurrentlyBindingVH = false;
+                    listener.onQuantityChanged(currentItem, newQuantity);
                 }
             });
+        }
+
+        private void updateDecreaseButtonAppearanceLocal(double quantity) {
+            binding.decreaseButton.setText(quantity <= 1 ? "🗑️" : "−");
         }
 
         public void bind(OrderItemEntity item) {
-            // Store current item
-            currentItem = item;
+            this.currentItem = item;
+            isCurrentlyBindingVH = true;
 
-            // Remove old watchers if they exist
-            if (quantityWatcher != null) {
-                binding.quantityEdit.removeTextChangedListener(quantityWatcher);
-            }
-            if (priceWatcher != null) {
-                binding.priceEdit.removeTextChangedListener(priceWatcher);
-            }
-
-            // Set data with binding flag to prevent callbacks
-            isBinding = true;
             binding.productName.setText(item.getProductName());
 
-            // Format quantity as integer if it's a whole number
             if (item.getQuantity() == Math.floor(item.getQuantity())) {
-                binding.quantityEdit.setText(String.format("%.0f", item.getQuantity()));
+                binding.quantityEdit.setText(String.format(Locale.US, "%.0f", item.getQuantity()));
             } else {
                 binding.quantityEdit.setText(String.valueOf(item.getQuantity()));
             }
+            binding.priceEdit.setText(String.format(Locale.US, "%.2f", item.getSellPrice()));
 
-            // Format price as integer if it's a whole number
-            if (item.getSellPrice() == Math.floor(item.getSellPrice())) {
-                binding.priceEdit.setText(String.format("%.0f", item.getSellPrice()));
-            } else {
-                binding.priceEdit.setText(String.valueOf(item.getSellPrice()));
-            }
+            // For ScanOrderAdapter, fields are always enabled.
+            binding.quantityEdit.setEnabled(true);
+            binding.priceEdit.setEnabled(true); // Or false if price is not set here
+            binding.increaseButton.setVisibility(View.VISIBLE);
+            binding.decreaseButton.setVisibility(View.VISIBLE);
+            updateDecreaseButtonAppearanceLocal(item.getQuantity());
 
-            isBinding = false;
 
-            // Create and add new watchers
-            quantityWatcher = createQuantityWatcher(item);
-            priceWatcher = createPriceWatcher(item);
+            if (quantityWatcher != null)
+                binding.quantityEdit.removeTextChangedListener(quantityWatcher);
+            if (priceWatcher != null) binding.priceEdit.removeTextChangedListener(priceWatcher);
 
+            quantityWatcher = createQuantityWatcherLocal(item);
+            priceWatcher = createPriceWatcherLocal(item);
             binding.quantityEdit.addTextChangedListener(quantityWatcher);
             binding.priceEdit.addTextChangedListener(priceWatcher);
+
+            isCurrentlyBindingVH = false;
         }
 
-        private TextWatcher createQuantityWatcher(OrderItemEntity item) {
+        private TextWatcher createQuantityWatcherLocal(OrderItemEntity itemRef) {
             return new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -195,24 +163,21 @@ public class ScanOrderAdapter extends ListAdapter<OrderItemEntity, RecyclerView.
 
                 @Override
                 public void afterTextChanged(Editable s) {
-                    if (isBinding)
-                        return;
-
+                    if (isCurrentlyBindingVH) return;
                     if (s.length() > 0) {
                         try {
                             double newQuantity = Double.parseDouble(s.toString());
-                            listener.onQuantityChanged(item, newQuantity);
-                        } catch (NumberFormatException e) {
-                            isBinding = true;
-                            binding.quantityEdit.setText(String.valueOf(item.getQuantity()));
-                            isBinding = false;
-                        }
+                            if (Math.abs(itemRef.getQuantity() - newQuantity) > 0.001) {
+                                listener.onQuantityChanged(itemRef, newQuantity);
+                                updateDecreaseButtonAppearanceLocal(newQuantity);
+                            }
+                        } catch (NumberFormatException e) { /* ignore */ }
                     }
                 }
             };
         }
 
-        private TextWatcher createPriceWatcher(OrderItemEntity item) {
+        private TextWatcher createPriceWatcherLocal(OrderItemEntity itemRef) {
             return new TextWatcher() {
                 @Override
                 public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -224,18 +189,14 @@ public class ScanOrderAdapter extends ListAdapter<OrderItemEntity, RecyclerView.
 
                 @Override
                 public void afterTextChanged(Editable s) {
-                    if (isBinding)
-                        return;
-
+                    if (isCurrentlyBindingVH) return;
                     if (s.length() > 0) {
                         try {
                             double newPrice = Double.parseDouble(s.toString());
-                            listener.onPriceChanged(item, newPrice);
-                        } catch (NumberFormatException e) {
-                            isBinding = true;
-                            binding.priceEdit.setText(String.valueOf(item.getSellPrice()));
-                            isBinding = false;
-                        }
+                            if (Math.abs(itemRef.getSellPrice() - newPrice) > 0.001) {
+                                listener.onPriceChanged(itemRef, newPrice);
+                            }
+                        } catch (NumberFormatException e) { /* ignore */ }
                     }
                 }
             };
