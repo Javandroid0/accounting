@@ -198,6 +198,7 @@ public class ScanOrderFragment extends Fragment {
             }
             if (managementDelegate != null) { // Update total when items change
                 managementDelegate.updateTotalDisplay();
+
             }
         });
         // Observe current order to update total display (already handled by managementDelegate.setupOrderObservers)
