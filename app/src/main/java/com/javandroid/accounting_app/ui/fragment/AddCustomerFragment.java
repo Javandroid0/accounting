@@ -68,6 +68,7 @@ public class AddCustomerFragment extends Fragment {
         customerViewModel.insert(customer);
         Toast.makeText(requireContext(), "Customer added successfully", Toast.LENGTH_SHORT).show();
 
+
         Navigation.findNavController(requireView()).navigateUp();
     }
 }
