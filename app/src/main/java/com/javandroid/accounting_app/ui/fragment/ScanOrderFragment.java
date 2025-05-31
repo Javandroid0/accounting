@@ -196,6 +196,7 @@ public class ScanOrderFragment extends Fragment {
             if (scanOrderAdapter != null) {
                 scanOrderAdapter.submitList(items != null ? new ArrayList<>(items) : new ArrayList<>());
             }
+
             if (managementDelegate != null) { // Update total when items change
                 managementDelegate.updateTotalDisplay();
 
