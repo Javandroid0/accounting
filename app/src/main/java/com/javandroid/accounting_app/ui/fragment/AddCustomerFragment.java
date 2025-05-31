@@ -32,7 +32,7 @@ public class AddCustomerFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-            @Nullable Bundle savedInstanceState) {
+                             @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_add_customer, container, false);
     }
 
@@ -56,6 +56,7 @@ public class AddCustomerFragment extends Fragment {
             Toast.makeText(requireContext(), "Please enter a name", Toast.LENGTH_SHORT).show();
             return;
         }
+
 
         CustomerEntity customer = new CustomerEntity();
         customer.setName(name);
