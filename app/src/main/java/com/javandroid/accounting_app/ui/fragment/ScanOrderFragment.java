@@ -6,6 +6,7 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -58,6 +59,7 @@ public class ScanOrderFragment extends Fragment {
     private OrderScanningDelegate scanningDelegate;
     private OrderPrintingDelegate printingDelegate;
     private OrderManagementDelegate managementDelegate;
+    private boolean isInitialLoad = true;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -193,12 +195,30 @@ public class ScanOrderFragment extends Fragment {
                 .prepareOrderForPrinting(() -> printingDelegate.checkPermissionsAndPrint(false)));
 
         // Handle barcode input using scanning delegate
+// Handle barcode input using scanning delegate
         barcodeInput.setOnEditorActionListener((v, actionId, event) -> {
-            if (event.getAction() == KeyEvent.ACTION_DOWN && actionId == KeyEvent.KEYCODE_ENTER) {
-                scanningDelegate.handleBarcodeInput();
-            }
+            boolean handled = false;
+            // Check for hardware Enter key press OR specific IME actions (like "Done", "Go", "Next", or default Enter)
+            if ((event != null && event.getAction() == KeyEvent.ACTION_DOWN && event.getKeyCode() == KeyEvent.KEYCODE_ENTER) ||
+                    actionId == EditorInfo.IME_ACTION_DONE ||
+                    actionId == EditorInfo.IME_ACTION_GO ||
+                    actionId == EditorInfo.IME_ACTION_NEXT ||
+                    actionId == EditorInfo.IME_NULL) {
 
-            return true;
+                // The scanningDelegate.handleBarcodeInput() method should:
+                // 1. Get the text from barcodeInput.
+                // 2. If the text is not empty, process it (fetchProductAndAdd).
+                // 3. Clear the barcodeInput text field.
+                scanningDelegate.handleBarcodeInput();
+
+                // The scanningDelegate.refocusBarcodeInput() method should:
+                // 1. Request focus back to barcodeInput.
+                // 2. Optionally, move the cursor or select text if needed.
+                scanningDelegate.refocusBarcodeInput();
+
+                handled = true; // Signify that the event has been handled
+            }
+            return handled; // Return true if handled, false otherwise
         });
 
         // Add click listeners to the user and customer cards to open drawers

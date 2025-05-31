@@ -156,12 +156,21 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
         });
     }
 
+    //    private void updateOrderDetails(OrderEntity order) {
+//        tvOrderId.setText(getString(R.string.order_id_format, order.getOrderId()));
+//        tvOrderDate.setText(order.getDate());
+//
+//        NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault());
+//        tvOrderTotal.setText(currencyFormat.format(order.getTotal()));
+//    }
     private void updateOrderDetails(OrderEntity order) {
-        tvOrderId.setText(getString(R.string.order_id_format, order.getOrderId()));
-        tvOrderDate.setText(order.getDate());
-
-        NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault());
-        tvOrderTotal.setText(currencyFormat.format(order.getTotal()));
+        Log.d(TAG, "DEBUG: updateOrderDetails called with Order ID: " + (order != null ? order.getOrderId() : "null"));
+        if (order != null) {
+            tvOrderId.setText(getString(R.string.order_id_format, order.getOrderId()));
+            tvOrderDate.setText(order.getDate());
+            NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault());
+            tvOrderTotal.setText(currencyFormat.format(order.getTotal()));
+        }
     }
 
     private void saveChanges() {

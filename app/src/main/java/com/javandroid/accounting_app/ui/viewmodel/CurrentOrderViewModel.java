@@ -50,7 +50,8 @@ public class CurrentOrderViewModel extends AndroidViewModel {
 
         // Initialize if empty
         if (stateRepository.getCurrentOrderValue() == null) {
-            resetCurrentOrder();
+//            resetCurrentOrder();
+            resetCurrentOrderInternal();
         }
     }
 
@@ -534,24 +535,12 @@ public class CurrentOrderViewModel extends AndroidViewModel {
                 ", total: " + (order != null ? order.getTotal() : "null"));
     }
 
-    /**
-     * Reset the current order to a new empty order
-     */
-    public void resetCurrentOrder() {
-        // Check if we're on the main thread
-        if (Looper.myLooper() == Looper.getMainLooper()) {
-            resetCurrentOrderInternal();
-        } else {
-            // We're on a background thread, need to post to main thread
-            mainHandler.post(this::resetCurrentOrderInternal);
-        }
-    }
 
     /**
      * Internal implementation of resetCurrentOrder that must be called on the main
      * thread
      */
-    private void resetCurrentOrderInternal() {
+    public void resetCurrentOrderInternal() {
         // Get current user ID
         long userId = 0;
         OrderEntity currentOrder = stateRepository.getCurrentOrderValue();

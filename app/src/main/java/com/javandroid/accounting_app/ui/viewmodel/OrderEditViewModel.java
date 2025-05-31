@@ -9,6 +9,7 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.javandroid.accounting_app.data.model.OrderEntity;
@@ -64,14 +65,22 @@ public class OrderEditViewModel extends AndroidViewModel {
     /**
      * Set an existing order for editing
      */
+// javandroid0/accounting/accounting-464a9036ea8d12d8e160ef3e5b0a317095287d4e/app/src/main/java/com/javandroid/accounting_app/ui/viewmodel/OrderEditViewModel.java
     public void setEditingOrder(OrderEntity order) {
-        Log.d(TAG, "Setting order for editing: ID=" + order.getOrderId());
+        Log.d(TAG, "Setting order for editing: ID=" + (order != null ? order.getOrderId() : "null"));
+        if (order == null) {
+            getStateRepository().setCurrentOrder(null); // Or handle as an empty order
+            getStateRepository().setCurrentOrderItems(new ArrayList<>());
+            return;
+        }
+
         getStateRepository().setCurrentOrder(order);
 
-        // Automatically load the order items for this order
         if (order.getOrderId() > 0) {
-            // Use a one-time observer to load the order items
-            final androidx.lifecycle.Observer<List<OrderItemEntity>> observer = new androidx.lifecycle.Observer<List<OrderItemEntity>>() {
+            LiveData<List<OrderItemEntity>> itemsLiveData = orderItemRepository.getOrderItems(order.getOrderId());
+
+            // It's good practice to define the observer separately to ensure 'this' in removeObserver is correct.
+            Observer<List<OrderItemEntity>> itemsObserver = new Observer<List<OrderItemEntity>>() {
                 @Override
                 public void onChanged(List<OrderItemEntity> orderItems) {
                     if (orderItems != null) {
@@ -79,74 +88,99 @@ public class OrderEditViewModel extends AndroidViewModel {
                         getStateRepository().setCurrentOrderItems(orderItems);
                     } else {
                         Log.w(TAG, "No items found for order ID=" + order.getOrderId());
-                        // Set empty list instead of null
                         getStateRepository().setCurrentOrderItems(new ArrayList<>());
                     }
-                    // Remove observer after use to prevent memory leaks
-//                    orderRepository.getOrderItems(order.getOrderId()).removeObserver(this);
+                    // Remove observer after use to prevent memory leaks and unwanted future updates
+                    itemsLiveData.removeObserver(this); // 'this' refers to this specific Observer instance
                 }
             };
-
-            // Start observing
-//            orderRepository.getOrderItems(order.getOrderId()).observeForever(observer);
+            itemsLiveData.observeForever(itemsObserver);
+        } else {
+            // For a new order (orderId <= 0) or invalid order, set empty items
+            getStateRepository().setCurrentOrderItems(new ArrayList<>());
         }
     }
+// javandroid0/accounting/accounting-464a9036ea8d12d8e160ef3e5b0a317095287d4e/app/src/main/java/com/javandroid/accounting_app/ui/viewmodel/OrderEditViewModel.java
 
     /**
-     * Cancel editing and reload the original order from the database
+     * Cancel editing. This should reset the shared state to a new order state.
      */
     public void cancelOrderEditing() {
         OrderEntity currentOrderValue = getStateRepository().getCurrentOrderValue();
-        if (currentOrderValue != null && currentOrderValue.getOrderId() > 0) {
-            // This is an existing order, reload it from database to discard changes
-            long orderId = currentOrderValue.getOrderId();
-            Log.d(TAG, "Canceling edits for order ID: " + orderId);
-
-            // Use a one-time observer to load the original order
-            final androidx.lifecycle.Observer<OrderEntity> orderObserver = new androidx.lifecycle.Observer<OrderEntity>() {
-                @Override
-                public void onChanged(OrderEntity order) {
-                    if (order != null) {
-                        Log.d(TAG, "Reloaded order from DB: " + order.getOrderId() +
-                                ", total: " + order.getTotal());
-                        getStateRepository().setCurrentOrder(order);
-                        // Remove observer after use to prevent memory leaks
-                        orderRepository.getOrderById(orderId).removeObserver(this);
-
-                        // Also reload items
-                        final androidx.lifecycle.Observer<List<OrderItemEntity>> itemsObserver = new androidx.lifecycle.Observer<List<OrderItemEntity>>() {
-                            @Override
-                            public void onChanged(List<OrderItemEntity> items) {
-                                if (items != null) {
-                                    Log.d(TAG, "Reloaded " + items.size() + " items for order ID: " + orderId);
-                                    getStateRepository().setCurrentOrderItems(items);
-                                } else {
-                                    Log.d(TAG, "No items loaded for order ID: " + orderId);
-                                }
-                                // Remove observer after use
-//                                orderRepository.getOrderItems(orderId).removeObserver(this);
-                            }
-                        };
-
-                        // Start observing items
-//                        orderRepository.getOrderItems(orderId).observeForever(itemsObserver);
-                    } else {
-                        Log.w(TAG, "Failed to reload order: " + orderId + " (returned null)");
-                    }
-                }
-            };
-
-            // Start observing order
-            orderRepository.getOrderById(orderId).observeForever(orderObserver);
-        } else {
-            // This is a new order, just reset it
-            Log.d(TAG, "Canceling edits for NEW order (orderId=0)");
-            currentOrderViewModel.resetCurrentOrder();
+        long userIdForNewSession = 0;
+        if (currentOrderValue != null) {
+            userIdForNewSession = currentOrderValue.getUserId(); // Preserve user for the new session
         }
+        Log.d(TAG, "Canceling edits. Resetting to new order session for user ID: " + userIdForNewSession);
 
-        // Clear ALL cached order data
-        getStateRepository().clearAllStoredOrders();
+        // Delegate the reset to CurrentOrderViewModel, which calls OrderSessionManager.createNewSession()
+        // This ensures the shared OrderStateRepository is replaced with a fresh one.
+        currentOrderViewModel.resetCurrentOrderInternal();
+
+        // Note: resetCurrentOrder in CurrentOrderViewModel should ideally use the correct current user ID.
+        // If userIdForNewSession is more reliable here, CurrentOrderViewModel's reset method
+        // might need to accept a userId or fetch it reliably.
+
+        // No need to clearAllStoredOrders() from the stateRepository if the repository instance itself is replaced.
+        // The old instance will be garbage collected if no longer referenced.
     }
+    /**
+     * Cancel editing and reload the original order from the database
+
+     public void cancelOrderEditing() {
+     OrderEntity currentOrderValue = getStateRepository().getCurrentOrderValue();
+     if (currentOrderValue != null && currentOrderValue.getOrderId() > 0) {
+     // This is an existing order, reload it from database to discard changes
+     long orderId = currentOrderValue.getOrderId();
+     Log.d(TAG, "Canceling edits for order ID: " + orderId);
+
+     // Use a one-time observer to load the original order
+     final androidx.lifecycle.Observer<OrderEntity> orderObserver = new androidx.lifecycle.Observer<OrderEntity>() {
+    @Override public void onChanged(OrderEntity order) {
+    if (order != null) {
+    Log.d(TAG, "Reloaded order from DB: " + order.getOrderId() +
+    ", total: " + order.getTotal());
+    getStateRepository().setCurrentOrder(order);
+    // Remove observer after use to prevent memory leaks
+    orderRepository.getOrderById(orderId).removeObserver(this);
+
+    // Also reload items
+    final androidx.lifecycle.Observer<List<OrderItemEntity>> itemsObserver = new androidx.lifecycle.Observer<List<OrderItemEntity>>() {
+    @Override public void onChanged(List<OrderItemEntity> items) {
+    if (items != null) {
+    Log.d(TAG, "Reloaded " + items.size() + " items for order ID: " + orderId);
+    getStateRepository().setCurrentOrderItems(items);
+    } else {
+    Log.d(TAG, "No items loaded for order ID: " + orderId);
+    }
+    // Remove observer after use
+    //                                orderRepository.getOrderItems(orderId).removeObserver(this);
+    orderItemRepository.getOrderItems(orderId).removeObserver(this);
+    }
+    };
+
+    // Start observing items
+    //                        orderRepository.getOrderItems(orderId).observeForever(itemsObserver);
+    orderItemRepository.getOrderItems(orderId).observeForever(itemsObserver);
+    } else {
+    Log.w(TAG, "Failed to reload order: " + orderId + " (returned null)");
+    }
+    }
+    };
+
+     // Start observing order
+     orderRepository.getOrderById(orderId).observeForever(orderObserver);
+     } else {
+     // This is a new order, just reset it
+     Log.d(TAG, "Canceling edits for NEW order (orderId=0)");
+     currentOrderViewModel.resetCurrentOrder();
+     }
+
+     // Clear ALL cached order data
+     getStateRepository().clearAllStoredOrders();
+     }
+
+     */
 
     /**
      * Save changes to an existing order

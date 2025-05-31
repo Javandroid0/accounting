@@ -43,9 +43,9 @@ public class OrderManagementDelegate implements OrderEditorAdapter.OnOrderItemCh
     private OrderEditorAdapter adapter;
 
     public OrderManagementDelegate(Fragment fragment,
-            CurrentOrderViewModel currentOrderViewModel,
-            CustomerOrderStateViewModel customerOrderStateViewModel,
-            ProductViewModel productViewModel) {
+                                   CurrentOrderViewModel currentOrderViewModel,
+                                   CustomerOrderStateViewModel customerOrderStateViewModel,
+                                   ProductViewModel productViewModel) {
         this.fragment = fragment;
         this.currentOrderViewModel = currentOrderViewModel;
         this.customerOrderStateViewModel = customerOrderStateViewModel;
@@ -312,8 +312,8 @@ public class OrderManagementDelegate implements OrderEditorAdapter.OnOrderItemCh
                 currentOrderViewModel.getCurrentOrder().getValue().getTotal() +
                 ", items: "
                 + (currentOrderViewModel.getCurrentOrderItems().getValue() != null
-                        ? currentOrderViewModel.getCurrentOrderItems().getValue().size()
-                        : 0));
+                ? currentOrderViewModel.getCurrentOrderItems().getValue().size()
+                : 0));
 
         // Force set items and total one more time to ensure consistency
         if (items != null && !items.isEmpty()) {
