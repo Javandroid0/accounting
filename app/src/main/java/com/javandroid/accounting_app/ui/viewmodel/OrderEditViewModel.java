@@ -13,6 +13,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import com.javandroid.accounting_app.data.model.OrderEntity;
 import com.javandroid.accounting_app.data.model.OrderItemEntity;
+import com.javandroid.accounting_app.data.repository.OrderItemRepository;
 import com.javandroid.accounting_app.data.repository.OrderRepository;
 import com.javandroid.accounting_app.data.repository.OrderStateRepository;
 import com.javandroid.accounting_app.data.repository.OrderSessionManager;
@@ -31,6 +32,7 @@ public class OrderEditViewModel extends AndroidViewModel {
     private static final String TAG = "OrderEditViewModel";
 
     private final OrderRepository orderRepository;
+    public final OrderItemRepository orderItemRepository;
     private final OrderSessionManager sessionManager;
     private OrderStateRepository stateRepository;
     private final CurrentOrderViewModel currentOrderViewModel;
@@ -42,6 +44,7 @@ public class OrderEditViewModel extends AndroidViewModel {
     public OrderEditViewModel(@NonNull Application application) {
         super(application);
         orderRepository = new OrderRepository(application);
+        orderItemRepository = new OrderItemRepository(application);
         sessionManager = OrderSessionManager.getInstance();
         stateRepository = sessionManager.getCurrentRepository();
         currentOrderViewModel = new ViewModelProvider.AndroidViewModelFactory(application)
@@ -80,12 +83,12 @@ public class OrderEditViewModel extends AndroidViewModel {
                         getStateRepository().setCurrentOrderItems(new ArrayList<>());
                     }
                     // Remove observer after use to prevent memory leaks
-                    orderRepository.getOrderItems(order.getOrderId()).removeObserver(this);
+//                    orderRepository.getOrderItems(order.getOrderId()).removeObserver(this);
                 }
             };
 
             // Start observing
-            orderRepository.getOrderItems(order.getOrderId()).observeForever(observer);
+//            orderRepository.getOrderItems(order.getOrderId()).observeForever(observer);
         }
     }
 
@@ -121,12 +124,12 @@ public class OrderEditViewModel extends AndroidViewModel {
                                     Log.d(TAG, "No items loaded for order ID: " + orderId);
                                 }
                                 // Remove observer after use
-                                orderRepository.getOrderItems(orderId).removeObserver(this);
+//                                orderRepository.getOrderItems(orderId).removeObserver(this);
                             }
                         };
 
                         // Start observing items
-                        orderRepository.getOrderItems(orderId).observeForever(itemsObserver);
+//                        orderRepository.getOrderItems(orderId).observeForever(itemsObserver);
                     } else {
                         Log.w(TAG, "Failed to reload order: " + orderId + " (returned null)");
                     }
@@ -169,7 +172,8 @@ public class OrderEditViewModel extends AndroidViewModel {
                             ", orderId: " + item.getOrderId() +
                             ", product: " + item.getProductName() +
                             ", quantity: " + item.getQuantity());
-                    orderRepository.updateOrderItem(item);
+//                    orderRepository.updateOrderItem(item);
+                    orderItemRepository.updateOrderItem(item);
                 } else {
                     // This is a new item for an existing order
                     Log.d(TAG, "Adding new item to existing order: " +
@@ -177,7 +181,8 @@ public class OrderEditViewModel extends AndroidViewModel {
                             ", product: " + item.getProductName() +
                             ", quantity: " + item.getQuantity());
                     item.setOrderId(order.getOrderId());
-                    orderRepository.insertOrderItem(item);
+//                    orderRepository.insertOrderItem(item);
+                    orderItemRepository.insertOrderItem(item);
                 }
             }
 
@@ -194,32 +199,34 @@ public class OrderEditViewModel extends AndroidViewModel {
 
     /**
      * Remove all observers for a specific order ID
+
+     public void cleanupOrderObservers(long orderId) {
+     Log.d(TAG, "Starting cleanup of observers for order ID: " + orderId);
+
+     // Get the LiveData for this order's items
+     LiveData<List<OrderItemEntity>> orderItemsLiveData = orderRepository.getOrderItems(orderId);
+
+
+     // Force remove all observers to prevent leaks and repeated loading
+     if (orderItemsLiveData instanceof MutableLiveData) {
+     // Clear internal observers - this is a way to force cleanup
+     try {
+     Field observersField = LiveData.class.getDeclaredField("mObservers");
+     observersField.setAccessible(true);
+     Object observers = observersField.get(orderItemsLiveData);
+     Method methodClear = observers.getClass().getDeclaredMethod("clear");
+     methodClear.setAccessible(true);
+     methodClear.invoke(observers);
+     Log.d(TAG, "Successfully cleaned up observers for order ID: " + orderId);
+     } catch (Exception e) {
+     Log.e(TAG, "Failed to clean up observers: " + e.getMessage(), e);
+     }
+     } else {
+     Log.w(TAG, "Could not clean observers for order ID: " + orderId +
+     " - LiveData is not MutableLiveData");
+     }
+     }
      */
-    public void cleanupOrderObservers(long orderId) {
-        Log.d(TAG, "Starting cleanup of observers for order ID: " + orderId);
-
-        // Get the LiveData for this order's items
-        LiveData<List<OrderItemEntity>> orderItemsLiveData = orderRepository.getOrderItems(orderId);
-
-        // Force remove all observers to prevent leaks and repeated loading
-        if (orderItemsLiveData instanceof MutableLiveData) {
-            // Clear internal observers - this is a way to force cleanup
-            try {
-                Field observersField = LiveData.class.getDeclaredField("mObservers");
-                observersField.setAccessible(true);
-                Object observers = observersField.get(orderItemsLiveData);
-                Method methodClear = observers.getClass().getDeclaredMethod("clear");
-                methodClear.setAccessible(true);
-                methodClear.invoke(observers);
-                Log.d(TAG, "Successfully cleaned up observers for order ID: " + orderId);
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to clean up observers: " + e.getMessage(), e);
-            }
-        } else {
-            Log.w(TAG, "Could not clean observers for order ID: " + orderId +
-                    " - LiveData is not MutableLiveData");
-        }
-    }
 
     /**
      * Get the event for order empty/deleted

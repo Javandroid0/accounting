@@ -9,6 +9,7 @@ import androidx.lifecycle.LiveData;
 
 import com.javandroid.accounting_app.data.model.OrderEntity;
 import com.javandroid.accounting_app.data.model.OrderItemEntity;
+import com.javandroid.accounting_app.data.repository.OrderItemRepository;
 import com.javandroid.accounting_app.data.repository.OrderRepository;
 import com.javandroid.accounting_app.data.repository.OrderStateRepository;
 import com.javandroid.accounting_app.data.repository.OrderSessionManager;
@@ -24,6 +25,7 @@ public class SavedOrdersViewModel extends AndroidViewModel {
     private static final String TAG = "SavedOrdersViewModel";
 
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final OrderSessionManager sessionManager;
     private OrderStateRepository stateRepository;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -35,6 +37,7 @@ public class SavedOrdersViewModel extends AndroidViewModel {
     public SavedOrdersViewModel(@NonNull Application application) {
         super(application);
         orderRepository = new OrderRepository(application);
+        orderItemRepository = new OrderItemRepository(application);
         sessionManager = OrderSessionManager.getInstance();
         stateRepository = sessionManager.getCurrentRepository();
     }
@@ -42,12 +45,13 @@ public class SavedOrdersViewModel extends AndroidViewModel {
     /**
      * Gets the current state repository from the session manager
      * This ensures we're always using the most up-to-date repository
+
+     private OrderStateRepository getStateRepository() {
+     // Update the reference to the current repository
+     stateRepository = sessionManager.getCurrentRepository();
+     return stateRepository;
+     }
      */
-    private OrderStateRepository getStateRepository() {
-        // Update the reference to the current repository
-        stateRepository = sessionManager.getCurrentRepository();
-        return stateRepository;
-    }
 
     /**
      * Get all orders from the repository
@@ -65,10 +69,11 @@ public class SavedOrdersViewModel extends AndroidViewModel {
 
     /**
      * Get orders for a specific user
+
+     public LiveData<List<OrderEntity>> getOrdersByUserId(long userId) {
+     return orderRepository.getOrdersByUserId(userId);
+     }
      */
-    public LiveData<List<OrderEntity>> getOrdersByUserId(long userId) {
-        return orderRepository.getOrdersByUserId(userId);
-    }
 
     /**
      * Get an order by ID
@@ -80,53 +85,56 @@ public class SavedOrdersViewModel extends AndroidViewModel {
     /**
      * Get items for a specific order
      */
-    public LiveData<List<OrderItemEntity>> getOrderItems(long orderId) {
-        return orderRepository.getOrderItems(orderId);
-    }
+//    public LiveData<List<OrderItemEntity>> getOrderItems(long orderId) {
+//        return orderRepository.getOrderItems(orderId);
+//    }
 
     /**
      * Delete an order
-     */
-    public void deleteOrder(OrderEntity order) {
-        orderRepository.deleteOrder(order);
-    }
 
-    /**
+     public void deleteOrder(OrderEntity order) {
+     orderRepository.deleteOrder(order);
+     }
+
+     /**
      * Delete all orders
-     */
-    public void deleteAllOrders() {
-        orderRepository.deleteAllOrders();
-    }
 
-    /**
+     public void deleteAllOrders() {
+     orderRepository.deleteAllOrders();
+     }
+
+     /**
      * Delete an order item
+
+     public void deleteOrderItem(OrderItemEntity orderItem) {
+     //        orderRepository.deleteOrderItem(orderItem);
+     orderItemRepository.deleteOrderItem(orderItem);
+     }
      */
-    public void deleteOrderItem(OrderItemEntity orderItem) {
-        orderRepository.deleteOrderItem(orderItem);
-    }
 
     /**
      * Delete an order and all its items
-     */
-    public void deleteOrderAndItems(long orderId) {
-        Log.d(TAG, "Deleting order ID: " + orderId + " and all its items from database");
 
-        executor.execute(() -> {
-            try {
-                // Get the order entity from the database
-                OrderEntity orderToDelete = orderRepository.getOrderByIdSync(orderId);
-                if (orderToDelete != null) {
-                    // Delete the order from database
-                    orderRepository.deleteOrder(orderToDelete);
-                    Log.d(TAG, "Order deleted from database: " + orderId);
-                } else {
-                    Log.w(TAG, "Could not find order to delete: " + orderId);
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to delete order: " + e.getMessage(), e);
-            }
-        });
-    }
+     public void deleteOrderAndItems(long orderId) {
+     Log.d(TAG, "Deleting order ID: " + orderId + " and all its items from database");
+
+     executor.execute(() -> {
+     try {
+     // Get the order entity from the database
+     OrderEntity orderToDelete = orderRepository.getOrderByIdSync(orderId);
+     if (orderToDelete != null) {
+     // Delete the order from database
+     orderRepository.deleteOrder(orderToDelete);
+     Log.d(TAG, "Order deleted from database: " + orderId);
+     } else {
+     Log.w(TAG, "Could not find order to delete: " + orderId);
+     }
+     } catch (Exception e) {
+     Log.e(TAG, "Failed to delete order: " + e.getMessage(), e);
+     }
+     });
+     }
+     */
 
     /**
      * Calculate profit for a specific user

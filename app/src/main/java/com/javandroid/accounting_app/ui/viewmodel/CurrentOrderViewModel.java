@@ -14,6 +14,7 @@ import androidx.lifecycle.MutableLiveData;
 import com.javandroid.accounting_app.data.model.OrderEntity;
 import com.javandroid.accounting_app.data.model.OrderItemEntity;
 import com.javandroid.accounting_app.data.model.ProductEntity;
+import com.javandroid.accounting_app.data.repository.OrderItemRepository;
 import com.javandroid.accounting_app.data.repository.OrderRepository;
 import com.javandroid.accounting_app.data.repository.OrderStateRepository;
 import com.javandroid.accounting_app.data.repository.OrderSessionManager;
@@ -33,6 +34,7 @@ public class CurrentOrderViewModel extends AndroidViewModel {
     private static final String TAG = "CurrentOrderViewModel";
 
     private final OrderRepository orderRepository;
+    public final OrderItemRepository orderItemRepository;
     private final OrderStateRepository stateRepository;
     private final OrderSessionManager sessionManager;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -42,6 +44,7 @@ public class CurrentOrderViewModel extends AndroidViewModel {
     public CurrentOrderViewModel(@NonNull Application application) {
         super(application);
         orderRepository = new OrderRepository(application);
+        orderItemRepository = new OrderItemRepository(application);
         sessionManager = OrderSessionManager.getInstance();
         stateRepository = sessionManager.getCurrentRepository();
 
@@ -285,14 +288,16 @@ public class CurrentOrderViewModel extends AndroidViewModel {
                                 Log.d(TAG, "Updating existing order item: " + item.getItemId() +
                                         ", product=" + item.getProductName() +
                                         ", quantity=" + item.getQuantity());
-                                orderRepository.updateOrderItem(item);
+//                                orderRepository.updateOrderItem(item);
+                                orderItemRepository.insertOrderItem(item);
                             } else {
                                 // Set order ID for new items
                                 Log.d(TAG, "Setting orderId=" + orderId + " for item: " + item.getItemId() +
                                         ", product=" + item.getProductName() +
                                         ", quantity=" + item.getQuantity());
                                 item.setOrderId(orderId);
-                                orderRepository.insertOrderItem(item);
+//                                orderRepository.insertOrderItem(item);
+                                orderItemRepository.insertOrderItem(item);
                             }
                         }
 
@@ -385,14 +390,16 @@ public class CurrentOrderViewModel extends AndroidViewModel {
                                 Log.d(TAG, "Updating existing order item: " + item.getItemId() +
                                         ", product=" + item.getProductName() +
                                         ", quantity=" + item.getQuantity());
-                                orderRepository.updateOrderItem(item);
+//                                orderRepository.updateOrderItem(item);
+                                orderItemRepository.updateOrderItem(item);
                             } else {
                                 // Set order ID for new items
                                 Log.d(TAG, "Setting orderId=" + orderId + " for item: " + item.getItemId() +
                                         ", product=" + item.getProductName() +
                                         ", quantity=" + item.getQuantity());
                                 item.setOrderId(orderId);
-                                orderRepository.insertOrderItem(item);
+//                                orderRepository.insertOrderItem(item);
+                                orderItemRepository.updateOrderItem(item);
                             }
                         }
 
@@ -500,7 +507,7 @@ public class CurrentOrderViewModel extends AndroidViewModel {
      * Force refresh the items in the repository to ensure they're not lost
      * This is needed in some cases where the repository might lose items during
      * state transitions
-     * 
+     *
      * @param items The items to set in the repository
      */
     public void refreshItems(List<OrderItemEntity> items) {

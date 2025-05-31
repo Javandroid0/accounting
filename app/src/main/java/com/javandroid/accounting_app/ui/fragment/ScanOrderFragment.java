@@ -2,6 +2,7 @@ package com.javandroid.accounting_app.ui.fragment;
 
 import android.os.Bundle;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -67,7 +68,7 @@ public class ScanOrderFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-            @Nullable Bundle savedInstanceState) {
+                             @Nullable Bundle savedInstanceState) {
         binding = FragmentScanOrderBinding.inflate(inflater, container, false);
         return binding.getRoot();
     }
@@ -193,7 +194,10 @@ public class ScanOrderFragment extends Fragment {
 
         // Handle barcode input using scanning delegate
         barcodeInput.setOnEditorActionListener((v, actionId, event) -> {
-            scanningDelegate.handleBarcodeInput();
+            if (event.getAction() == KeyEvent.ACTION_DOWN && actionId == KeyEvent.KEYCODE_ENTER) {
+                scanningDelegate.handleBarcodeInput();
+            }
+
             return true;
         });
 
@@ -258,7 +262,7 @@ public class ScanOrderFragment extends Fragment {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-            @NonNull int[] grantResults) {
+                                           @NonNull int[] grantResults) {
         // Delegate permission handling to the printing delegate
         printingDelegate.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }

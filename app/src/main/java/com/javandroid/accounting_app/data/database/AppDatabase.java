@@ -10,6 +10,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import com.javandroid.accounting_app.data.dao.CustomerDao;
 import com.javandroid.accounting_app.data.dao.OrderDao;
+import com.javandroid.accounting_app.data.dao.OrderItemDao;
 import com.javandroid.accounting_app.data.dao.ProductDao;
 import com.javandroid.accounting_app.data.dao.UserDao;
 import com.javandroid.accounting_app.data.model.CustomerEntity;
@@ -37,14 +38,16 @@ public abstract class AppDatabase extends RoomDatabase {
 
     public abstract CustomerDao customerDao();
 
+    public abstract OrderItemDao orderItemDao();
+
     public static AppDatabase getInstance(Context context) {
         if (instance == null) {
             synchronized (AppDatabase.class) {
                 if (instance == null) {
                     instance = Room.databaseBuilder(
-                            context.getApplicationContext(),
-                            AppDatabase.class,
-                            "shop-db")
+                                    context.getApplicationContext(),
+                                    AppDatabase.class,
+                                    "shop-db")
                             .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
                             .build();
                 }

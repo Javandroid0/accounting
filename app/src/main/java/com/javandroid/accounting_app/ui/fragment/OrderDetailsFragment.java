@@ -61,7 +61,7 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-            @Nullable Bundle savedInstanceState) {
+                             @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_order_details, container, false);
     }
 
@@ -108,7 +108,7 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
 
     private void setupButtonListeners() {
         btnSave.setOnClickListener(v -> saveChanges());
-        btnCancel.setOnClickListener(v -> cancelEditing());
+//        btnCancel.setOnClickListener(v -> cancelEditing());
         Log.d(TAG, "DEBUG: Button listeners setup complete");
     }
 
@@ -181,7 +181,7 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
             Toast.makeText(requireContext(), "Changes saved", Toast.LENGTH_SHORT).show();
 
             // Clean up observers after saving changes, just like we do when canceling
-            clearCurrentOrderData();
+//            clearCurrentOrderData();
         } else {
             Toast.makeText(requireContext(), "No changes to save", Toast.LENGTH_SHORT).show();
         }
@@ -190,6 +190,7 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
         // Return to the previous screen
         Navigation.findNavController(requireView()).navigateUp();
     }
+    /*
 
     private void cancelEditing() {
         Log.d(TAG, "DEBUG: Cancel button clicked, hasChanges: " + hasChanges);
@@ -234,6 +235,8 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
                 .show();
     }
 
+     */
+
     @Override
     public void onQuantityChanged(OrderItemEntity item, double newQuantity) {
         Log.d(TAG, "DEBUG: Item quantity changed - " + item.getProductName() +
@@ -273,10 +276,13 @@ public class OrderDetailsFragment extends Fragment implements OrderEditorAdapter
         Log.d(TAG, "DEBUG: Fragment destroyed");
     }
 
+    /*
     private void clearCurrentOrderData() {
         if (orderEditViewModel != null && orderId > 0) {
             // Clean up any observers for this specific order
             orderEditViewModel.cleanupOrderObservers(orderId);
         }
     }
+
+     */
 }

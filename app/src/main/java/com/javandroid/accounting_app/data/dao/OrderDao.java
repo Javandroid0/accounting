@@ -4,7 +4,7 @@ import androidx.lifecycle.LiveData;
 import androidx.room.*;
 
 import com.javandroid.accounting_app.data.model.OrderEntity;
-import com.javandroid.accounting_app.data.model.OrderItemEntity;
+// OrderItemEntity import is no longer needed here for the moved methods
 
 import java.util.List;
 
@@ -14,8 +14,7 @@ public interface OrderDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     long insertOrder(OrderEntity order);
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertOrderItem(OrderItemEntity orderItem);
+    // insertOrderItem - MOVED to OrderItemDao
 
     @Query("SELECT * FROM orders ORDER BY orderId ASC")
     LiveData<List<OrderEntity>> getAllOrders();
@@ -29,11 +28,8 @@ public interface OrderDao {
     @Query("SELECT * FROM orders WHERE userId = :userId")
     LiveData<List<OrderEntity>> getOrdersByUserId(long userId);
 
-    @Query("SELECT * FROM order_items WHERE orderId = :orderId")
-    LiveData<List<OrderItemEntity>> getOrderItems(long orderId);
-
-    @Query("SELECT * FROM order_items WHERE orderId = :orderId")
-    List<OrderItemEntity> getItemsForOrderSync(long orderId);
+    // getOrderItems (LiveData) - MOVED to OrderItemDao
+    // getItemsForOrderSync - MOVED to OrderItemDao
 
     @Query("SELECT * FROM orders WHERE orderId = :orderId LIMIT 1")
     LiveData<OrderEntity> getOrderById(long orderId);
@@ -42,13 +38,13 @@ public interface OrderDao {
     OrderEntity getOrderByIdSync(long orderId);
 
     @Query("SELECT SUM((oi.sellPrice - oi.buyPrice) * oi.quantity) AS profit " +
-            "FROM order_items oi " +
+            "FROM order_items oi " + // Still need order_items table for this query
             "JOIN orders o ON oi.orderId = o.orderId " +
             "WHERE o.userId = :userId")
     double calculateProfitByUserSync(long userId);
 
     @Query("SELECT SUM((oi.sellPrice - oi.buyPrice) * oi.quantity) AS profit " +
-            "FROM order_items oi " +
+            "FROM order_items oi " + // Still need order_items table for this query
             "JOIN orders o ON oi.orderId = o.orderId " +
             "WHERE o.userId = :userId AND o.customerId = :customerId")
     double calculateProfitByUserAndCustomerSync(long userId, long customerId);
@@ -56,18 +52,15 @@ public interface OrderDao {
     @Update
     void updateOrder(OrderEntity order);
 
-    @Update
-    void updateOrderItem(OrderItemEntity orderItem);
+    // updateOrderItem - MOVED to OrderItemDao
 
     @Delete
     void deleteOrder(OrderEntity order);
 
-    @Delete
-    void deleteOrderItem(OrderItemEntity orderItem);
+    // deleteOrderItem - MOVED to OrderItemDao
 
     @Query("DELETE FROM orders")
     void deleteAllOrders();
 
-    @Query("DELETE FROM order_items")
-    void deleteAllOrderItems();
+    // deleteAllOrderItems - MOVED to OrderItemDao
 }

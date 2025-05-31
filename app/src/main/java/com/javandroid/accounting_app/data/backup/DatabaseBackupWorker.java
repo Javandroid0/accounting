@@ -158,7 +158,7 @@ public class DatabaseBackupWorker extends Worker {
                 writer.append("Item ID,Order ID,Product ID,Product Name,Barcode,Quantity,Buy Price,Sell Price\n");
 
                 for (OrderEntity order : orders) {
-                    List<OrderItemEntity> items = database.orderDao().getItemsForOrderSync(order.getOrderId());
+                    List<OrderItemEntity> items = database.orderItemDao().getItemsForOrderSync(order.getOrderId());
 
                     if (items == null || items.isEmpty()) {
                         continue;
