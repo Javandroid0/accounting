@@ -14,7 +14,6 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
-import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -22,13 +21,14 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.navigation.NavigationView;
 import com.javandroid.accounting_app.data.model.CustomerEntity;
 import com.javandroid.accounting_app.data.model.UserEntity;
-import com.javandroid.accounting_app.ui.adapter.CustomerDrawerAdapter;
-import com.javandroid.accounting_app.ui.adapter.UserDrawerAdapter;
-import com.javandroid.accounting_app.ui.fragment.CustomerSelectionDialogFragment;
-import com.javandroid.accounting_app.ui.fragment.UserSelectionDialogFragment;
-import com.javandroid.accounting_app.ui.viewmodel.CustomerViewModel;
-import com.javandroid.accounting_app.ui.viewmodel.UserViewModel;
-import com.javandroid.accounting_app.ui.viewmodel.CustomerOrderStateViewModel;
+import com.javandroid.accounting_app.ui.adapter.customer.CustomerDrawerAdapter;
+import com.javandroid.accounting_app.ui.adapter.user.UserDrawerAdapter;
+import com.javandroid.accounting_app.ui.fragment.customer.CustomerSelectionDialogFragment;
+import com.javandroid.accounting_app.ui.fragment.user.UserProfitFragment;
+import com.javandroid.accounting_app.ui.fragment.user.UserSelectionDialogFragment;
+import com.javandroid.accounting_app.ui.viewmodel.customer.CustomerViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.user.UserViewModel;
+import com.javandroid.accounting_app.ui.viewmodel.customer.CustomerOrderStateViewModel;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener,
@@ -151,7 +151,7 @@ public class MainActivity extends AppCompatActivity
         } else if (id == R.id.nav_user_profit) {
             // Navigate to user profit summary
             getSupportFragmentManager().beginTransaction()
-                    .replace(R.id.nav_host_fragment, new com.javandroid.accounting_app.ui.fragment.UserProfitFragment())
+                    .replace(R.id.nav_host_fragment, new UserProfitFragment())
                     .addToBackStack(null)
                     .commit();
         } else if (id == R.id.menu_delete_user) {
