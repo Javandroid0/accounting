@@ -115,4 +115,9 @@ public class SavedOrdersViewModel extends AndroidViewModel {
             executor.shutdown();
         }
     }
+
+    public LiveData<Double> getTotalBoughtByCustomer(long customerId) {
+        return orderRepository.getTotalBoughtByCustomer(customerId);
+    }
+
 }

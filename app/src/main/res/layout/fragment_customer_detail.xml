@@ -14,7 +14,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
-        
+
     <androidx.cardview.widget.CardView
         android:id="@+id/cardProfit"
         android:layout_width="match_parent"
@@ -25,13 +25,13 @@
         app:layout_constraintTop_toBottomOf="@+id/tvCustomerName"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
-        
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="12dp">
-            
+
             <TextView
                 android:id="@+id/tvProfitHeader"
                 android:layout_width="match_parent"
@@ -39,35 +39,45 @@
                 android:text="Sales Profit"
                 android:textStyle="bold"
                 android:textSize="18sp" />
-                
-                <LinearLayout
-                    android:id="@+id/layoutUserProfit"
+
+            <LinearLayout
+                android:id="@+id/layoutUserProfit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="8dp">
+
+                <TextView
+                    android:id="@+id/tvCurrentUser"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:layout_marginTop="8dp">
-                    
-                    <TextView
-                        android:id="@+id/tvCurrentUser"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="User: --"
-                        android:textSize="16sp" />
-                        
-                    <TextView
-                        android:id="@+id/tvCurrentUserProfit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="With this customer: ₹0.00"
-                        android:textSize="14sp" />
-                        
-                    <TextView
-                        android:id="@+id/tvUserTotalProfit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Total profit: ₹0.00"
-                        android:textSize="14sp" />
-                </LinearLayout>
+                    android:text="User: --"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/tvCurrentUserProfit"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="With this customer: ₹0.00"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tvUserTotalProfit"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Total profit: ₹0.00"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tvCustomerTotalBought"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Total bought: 0.00"
+                    android:textSize="16sp"
+                    android:paddingTop="4dp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
         </LinearLayout>
     </androidx.cardview.widget.CardView>
 

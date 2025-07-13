@@ -49,6 +49,10 @@ public interface OrderDao {
             "WHERE o.userId = :userId AND o.customerId = :customerId")
     double calculateProfitByUserAndCustomerSync(long userId, long customerId);
 
+    @Query("SELECT SUM(total) FROM orders WHERE customerId = :customerId")
+    LiveData<Double> getTotalBoughtByCustomer(long customerId);
+
+
     @Update
     void updateOrder(OrderEntity order);
 

@@ -72,14 +72,25 @@ public class OrderScanningDelegate {
      * Start the barcode scanner
      */
     public void startBarcodeScanner() {
-        IntentIntegrator integrator = new IntentIntegrator(fragment.requireActivity());
-        integrator.setDesiredBarcodeFormats(IntentIntegrator.ALL_CODE_TYPES);
-        integrator.setPrompt("Scan a barcode");
-        integrator.setCameraId(0); // Use default camera
-        integrator.setBeepEnabled(true);
-        integrator.setBarcodeImageEnabled(true);
-        barcodeLauncher.launch(integrator.createScanIntent());
+        AlertDialog.Builder builder = new AlertDialog.Builder(fragment.requireContext());
+        builder.setTitle("Select Camera");
+        String[] cameraOptions = {"Back Camera", "Front Camera"};
+
+        builder.setItems(cameraOptions, (dialog, which) -> {
+            int cameraId = (which == 0) ? 0 : 1; // 0 = back, 1 = front
+
+            IntentIntegrator integrator = new IntentIntegrator(fragment.requireActivity());
+            integrator.setDesiredBarcodeFormats(IntentIntegrator.ALL_CODE_TYPES);
+            integrator.setPrompt("Scan a barcode");
+            integrator.setCameraId(cameraId); // Set based on user choice
+            integrator.setBeepEnabled(true);
+            integrator.setBarcodeImageEnabled(true);
+            barcodeLauncher.launch(integrator.createScanIntent());
+        });
+
+        builder.show();
     }
+
 
     /**
      * Handle manual barcode input

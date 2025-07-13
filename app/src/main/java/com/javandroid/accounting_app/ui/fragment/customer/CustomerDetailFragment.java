@@ -44,6 +44,7 @@ public class CustomerDetailFragment extends Fragment implements OrderListAdapter
     private RecyclerView recyclerViewOrders;
     private ExecutorService executor;
     private UserRepository userRepository;
+    private TextView tvCustomerTotalBought;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -72,7 +73,10 @@ public class CustomerDetailFragment extends Fragment implements OrderListAdapter
         tvCurrentUserProfit = view.findViewById(R.id.tvCurrentUserProfit);
         tvUserTotalProfit = view.findViewById(R.id.tvUserTotalProfit);
         recyclerViewOrders = view.findViewById(R.id.recyclerViewOrders);
+        tvCustomerTotalBought = view.findViewById(R.id.tvCustomerTotalBought);
+
         recyclerViewOrders.setLayoutManager(new LinearLayoutManager(requireContext()));
+
 
         adapter = new OrderListAdapter(this);
         recyclerViewOrders.setAdapter(adapter);
@@ -81,9 +85,20 @@ public class CustomerDetailFragment extends Fragment implements OrderListAdapter
         customerViewModel.getSelectedCustomer().observe(getViewLifecycleOwner(), customer -> {
             if (customer != null) {
                 tvCustomerName.setText(customer.getName());
+
                 loadCustomerOrders(customer);
                 loadProfitData(customer);
+                savedOrdersViewModel.getTotalBoughtByCustomer(customer.getCustomerId())
+                        .observe(getViewLifecycleOwner(), totalBought -> {
+                            if (totalBought != null) {
+                                tvCustomerTotalBought.setText(String.format("Total bought: %.2f", totalBought));
+                            } else {
+                                tvCustomerTotalBought.setText("Total bought: 0.00");
+                            }
+                        });
             }
+
+
         });
 
         // Observe profit calculations
@@ -98,6 +113,8 @@ public class CustomerDetailFragment extends Fragment implements OrderListAdapter
                 tvCurrentUserProfit.setText(String.format("With this customer: %.2f", profit));
             }
         });
+
+
     }
 
     private void loadProfitData(CustomerEntity customer) {

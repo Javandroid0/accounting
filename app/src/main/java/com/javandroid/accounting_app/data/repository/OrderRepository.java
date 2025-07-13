@@ -183,6 +183,10 @@ public class OrderRepository {
         void onResult(double profit);
     }
 
+    public LiveData<Double> getTotalBoughtByCustomer(long customerId) {
+        return orderDao.getTotalBoughtByCustomer(customerId);
+    }
+
     // Profit calculation methods remain as they join `orders` and `order_items`
     public void calculateProfitByUser(long userId, OnProfitResultCallback callback) {
         Log.d(TAG, "Calculating profit for user: " + userId);
