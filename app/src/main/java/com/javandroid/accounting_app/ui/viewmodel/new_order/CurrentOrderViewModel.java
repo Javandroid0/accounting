@@ -92,6 +92,7 @@ public class CurrentOrderViewModel extends AndroidViewModel {
         currentSessionOrderLiveDataInternal = currentRepo.getCurrentOrder();
         currentSessionItemsLiveDataInternal = currentRepo.getCurrentOrderItems();
 
+
         // Create new observers
         sessionOrderObserver = orderEntity -> _fragmentOrderLiveData.setValue(orderEntity);
         sessionItemsObserver = orderItems -> _fragmentOrderItemsLiveData.setValue(orderItems);
