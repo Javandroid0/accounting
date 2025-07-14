@@ -30,23 +30,19 @@ public class CustomerOrderStateViewModel extends AndroidViewModel {
     }
 
     /**
-     * Gets the current state repository from the session manager
-     * This ensures we're always using the most up-to-date repository
+     * Gets the current state repository from the session manager.
      */
     private OrderStateRepository getStateRepository() {
-        // Update the reference to the current repository
         stateRepository = sessionManager.getCurrentRepository();
         return stateRepository;
     }
 
     /**
-     * Set the customer ID for the current order
-     * and load any saved state for that customer
+     * Sets the customer for the current order and handles state transitions.
+     * This now acts as a coordinator for more specific private methods.
      *
-     * @param customerId           The customer ID to set
-     * @param preserveCurrentItems If true, current items will be preserved even for
-     *                             first-time customers (used during order
-     *                             confirmation)
+     * @param customerId The customer ID to set.
+     * @param preserveCurrentItems If true, current items are preserved.
      */
     public void setCustomerId(long customerId, boolean preserveCurrentItems) {
         if (customerId <= 0) {
@@ -61,135 +57,130 @@ public class CustomerOrderStateViewModel extends AndroidViewModel {
         }
 
         OrderEntity order = repo.getCurrentOrderValue();
-        if (order != null) {
-            try {
-                // First, get current items before changing anything
-                List<OrderItemEntity> currentItems = repo.getCurrentOrderItemsValue();
-
-                // Log the current items and total before doing anything
-                Log.d(TAG, "Current state before customer change - customerId=" + order.getCustomerId()
-                        + ", items=" + (currentItems != null ? currentItems.size() : 0)
-                        + ", total=" + order.getTotal());
-
-                // Save current order state for the previous customer if not preserving items
-                if (!preserveCurrentItems && order.getCustomerId() > 0 && order.getCustomerId() != customerId) {
-                    Log.d(TAG, "Saving state for previous customer: " + order.getCustomerId() +
-                            " before switching to customer: " + customerId);
-                    saveCurrentOrderStateForCustomer(order.getCustomerId());
-                }
-
-                // Set new customer ID
-                order.setCustomerId(customerId);
-                repo.setCurrentOrder(order);
-
-                // If we're preserving current items (during order confirmation), don't load or
-                // clear anything
-                if (preserveCurrentItems) {
-                    Log.d(TAG, "Preserving current items and total for customer: " + customerId +
-                            " (preserveCurrentItems=true)");
-                    // No need to do anything, keep current items and total
-                }
-                // If we already have an order for this customer and not preserving, load it
-                else if (repo.hasStoredOrderForCustomer(customerId)) {
-                    OrderEntity savedOrder = repo.getStoredOrderForCustomer(customerId);
-                    List<OrderItemEntity> savedItems = repo.getStoredOrderItemsForCustomer(customerId);
-
-                    Log.d(TAG, "Restoring cached order for customer: " + customerId +
-                            ", cached total: " + (savedOrder != null ? savedOrder.getTotal() : "null") +
-                            ", cached items: " + (savedItems != null ? savedItems.size() : 0));
-
-                    // Update with saved data but keep the same order instance to avoid
-                    // breaking references in the UI
-                    if (savedOrder != null) {
-                        order.setTotal(savedOrder.getTotal());
-                        repo.setCurrentOrder(order);
-                    }
-
-                    // Load this customer's items
-                    if (savedItems != null && !savedItems.isEmpty()) {
-                        Log.d(TAG, "Restoring " + savedItems.size() + " cached items for customer: " + customerId);
-                        repo.setCurrentOrderItems(savedItems);
-                    } else {
-                        Log.d(TAG, "No cached items for customer: " + customerId + ", using empty list");
-                        repo.setCurrentOrderItems(new ArrayList<>());
-                    }
-                } else if (!preserveCurrentItems) {
-                    // First time seeing this customer, start with empty order (only if not
-                    // preserving items)
-                    Log.d(TAG, "First visit for customer: " + customerId + ", starting with empty order");
-
-                    // Always start with empty order items for a new customer
-                    // This fixes the issue where items from one customer were showing for another
-                    order.setTotal(0.0);
-                    repo.setCurrentOrder(order);
-                    repo.setCurrentOrderItems(new ArrayList<>());
-                }
-
-                // Final check after all operations to make sure the order total is consistent
-                // with items
-                List<OrderItemEntity> finalItems = repo.getCurrentOrderItemsValue();
-                OrderEntity finalOrder = repo.getCurrentOrderValue();
-
-                if (finalItems != null && !finalItems.isEmpty() && finalOrder != null) {
-                    double calculatedTotal = 0.0;
-                    for (OrderItemEntity item : finalItems) {
-                        calculatedTotal += item.getQuantity() * item.getSellPrice();
-                    }
-
-                    if (Math.abs(calculatedTotal - finalOrder.getTotal()) > 0.001) {
-                        Log.w(TAG, "Order total mismatch after customer change. Current: " + finalOrder.getTotal()
-                                + ", Calculated: " + calculatedTotal + ". Fixing total.");
-                        finalOrder.setTotal(calculatedTotal);
-                        repo.setCurrentOrder(finalOrder);
-                    }
-
-                    Log.d(TAG, "Final state after customer change - customerId=" + finalOrder.getCustomerId()
-                            + ", items=" + finalItems.size()
-                            + ", total=" + finalOrder.getTotal());
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Error while setting customer ID: " + e.getMessage(), e);
-            }
-        } else {
+        if (order == null) {
             Log.w(TAG, "Cannot set customer ID, current order is null");
+            return;
+        }
+
+        // If the customer is not changing, there's nothing to do.
+        if (order.getCustomerId() == customerId) {
+            Log.d(TAG, "Customer ID " + customerId + " is already set. No state change needed.");
+            return;
+        }
+
+        try {
+            // 1. Save the state for the outgoing customer, if applicable.
+            handleStateForPreviousCustomer(repo, order, customerId, preserveCurrentItems);
+
+            // 2. Set the new customer ID on the order.
+            order.setCustomerId(customerId);
+            repo.setCurrentOrder(order);
+
+            // 3. Load the state for the incoming customer.
+            loadStateForNewCustomer(repo, order, customerId, preserveCurrentItems);
+
+            // 4. Perform a final validation of the order total.
+            reconcileOrderTotal(repo);
+
+        } catch (Exception e) {
+            Log.e(TAG, "Error while setting customer ID: " + e.getMessage(), e);
         }
     }
 
     /**
-     * Set the customer ID for the current order
-     * Overloaded method for backward compatibility, defaults to not preserving
-     * items
+     * Saves the current order state for the previous customer before switching.
      */
+    private void handleStateForPreviousCustomer(OrderStateRepository repo, OrderEntity order, long newCustomerId, boolean preserveCurrentItems) {
+        if (!preserveCurrentItems && order.getCustomerId() > 0 && order.getCustomerId() != newCustomerId) {
+            Log.d(TAG, "Saving state for previous customer: " + order.getCustomerId());
+            saveCurrentOrderStateForCustomer(order.getCustomerId());
+        }
+    }
+
+    /**
+     * Determines whether to restore a cached order or start a new one for the customer.
+     */
+    private void loadStateForNewCustomer(OrderStateRepository repo, OrderEntity order, long customerId, boolean preserveCurrentItems) {
+        if (preserveCurrentItems) {
+            Log.d(TAG, "Preserving current items and total for customer: " + customerId);
+            return; // Do nothing, keep current items.
+        }
+
+        if (repo.hasStoredOrderForCustomer(customerId)) {
+            restoreCachedOrder(repo, order, customerId);
+        } else {
+            startNewOrder(repo, order);
+        }
+    }
+
+    /**
+     * Restores a previously cached order and its items for the given customer.
+     */
+    private void restoreCachedOrder(OrderStateRepository repo, OrderEntity order, long customerId) {
+        OrderEntity savedOrder = repo.getStoredOrderForCustomer(customerId);
+        List<OrderItemEntity> savedItems = repo.getStoredOrderItemsForCustomer(customerId);
+
+        Log.d(TAG, "Restoring cached order for customer: " + customerId);
+
+        if (savedOrder != null) {
+            order.setTotal(savedOrder.getTotal());
+            repo.setCurrentOrder(order);
+        }
+        repo.setCurrentOrderItems(savedItems != null ? savedItems : new ArrayList<>());
+    }
+
+    /**
+     * Resets the order state for a new customer visit.
+     */
+    private void startNewOrder(OrderStateRepository repo, OrderEntity order) {
+        Log.d(TAG, "First visit for customer: " + order.getCustomerId() + ", starting with empty order");
+        order.setTotal(0.0);
+        repo.setCurrentOrder(order);
+        repo.setCurrentOrderItems(new ArrayList<>());
+    }
+
+    /**
+     * Recalculates the order total based on its items and updates if inconsistent.
+     */
+    private void reconcileOrderTotal(OrderStateRepository repo) {
+        List<OrderItemEntity> finalItems = repo.getCurrentOrderItemsValue();
+        OrderEntity finalOrder = repo.getCurrentOrderValue();
+
+        if (finalItems != null && !finalItems.isEmpty() && finalOrder != null) {
+            double calculatedTotal = 0.0;
+            for (OrderItemEntity item : finalItems) {
+                calculatedTotal += item.getQuantity() * item.getSellPrice();
+            }
+
+            if (Math.abs(calculatedTotal - finalOrder.getTotal()) > 0.001) {
+                Log.w(TAG, "Order total mismatch after state change. Current: " + finalOrder.getTotal()
+                        + ", Calculated: " + calculatedTotal + ". Fixing total.");
+                finalOrder.setTotal(calculatedTotal);
+                repo.setCurrentOrder(finalOrder);
+            }
+        }
+        Log.d(TAG, "Final state after customer change - customerId=" + finalOrder.getCustomerId()
+                + ", items=" + (finalItems != null ? finalItems.size() : "null")
+                + ", total=" + finalOrder.getTotal());
+    }
+
+    // Overloaded method for backward compatibility.
     public void setCustomerId(long customerId) {
         setCustomerId(customerId, false);
     }
 
     /**
-     * Force set the current items and total
-     * This is a direct method to update the items and total when the Repository
-     * access methods aren't working
-     *
-     * @param items The items to set
-     * @param total The total to set
+     * Force-sets the items and total, bypassing normal state-switching logic.
      */
     public void forceSetItemsAndTotal(List<OrderItemEntity> items, double total) {
         Log.d(TAG, "Force setting " + (items != null ? items.size() : 0) + " items and total=" + total);
-
         OrderStateRepository repo = getStateRepository();
         OrderEntity order = repo.getCurrentOrderValue();
 
         if (order != null) {
             order.setTotal(total);
             repo.setCurrentOrder(order);
-
-            if (items != null) {
-                // Make a copy to avoid reference issues
-                List<OrderItemEntity> itemsCopy = new ArrayList<>(items);
-                repo.setCurrentOrderItems(itemsCopy);
-            } else {
-                repo.setCurrentOrderItems(new ArrayList<>());
-            }
-
+            repo.setCurrentOrderItems(items != null ? new ArrayList<>(items) : new ArrayList<>());
             Log.d(TAG, "Items and total force-set successfully");
         } else {
             Log.w(TAG, "Cannot force set items and total: order is null");
@@ -197,43 +188,33 @@ public class CustomerOrderStateViewModel extends AndroidViewModel {
     }
 
     /**
-     * Save the current order state for a customer
+     * Saves the current order state to the repository's cache for a specific customer.
      */
     private void saveCurrentOrderStateForCustomer(long customerId) {
         OrderStateRepository repo = getStateRepository();
         OrderEntity currentOrderValue = repo.getCurrentOrderValue();
         List<OrderItemEntity> currentItemsValue = repo.getCurrentOrderItemsValue();
 
-        if (currentOrderValue != null) {
-            Log.d(TAG, "Caching order for customer: " + customerId +
-                    ", total: " + currentOrderValue.getTotal());
-        }
-
-        if (currentItemsValue != null) {
-            Log.d(TAG, "Caching " + currentItemsValue.size() + " items for customer: " + customerId);
-        } else {
-            Log.d(TAG, "No items to cache for customer: " + customerId);
-        }
-
+        Log.d(TAG, "Caching order state for customer: " + customerId);
         repo.storeOrderStateForCustomer(customerId, currentOrderValue, currentItemsValue);
     }
 
     /**
-     * Set the current user ID
+     * Set the current user ID in the repository.
      */
     public void setCurrentUserId(long userId) {
         getStateRepository().setCurrentUserId(userId);
     }
 
     /**
-     * Clear stored order state for a customer
+     * Clear stored order state for a customer.
      */
     public void clearCustomerOrderState(long customerId) {
         getStateRepository().clearStoredOrderForCustomer(customerId);
     }
 
     /**
-     * Clear all stored order states
+     * Clear all stored order states.
      */
     public void clearAllCustomerOrderStates() {
         getStateRepository().clearAllStoredOrders();
