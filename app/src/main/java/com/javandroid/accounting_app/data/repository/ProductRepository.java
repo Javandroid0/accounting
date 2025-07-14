@@ -99,4 +99,9 @@ public class ProductRepository {
     public LiveData<ProductEntity> getProductById(long productId) {
         return productDao.getProductById(productId);
     }
+
+    // Add this new method to your ProductRepository.java
+    public LiveData<List<ProductEntity>> getAllProductsSortedByStock() {
+        return productDao.getAllProductsSortedByStock();
+    }
 }

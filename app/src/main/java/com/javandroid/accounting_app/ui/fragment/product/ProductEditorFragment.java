@@ -1,5 +1,6 @@
 package com.javandroid.accounting_app.ui.fragment.product;
 
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
@@ -25,6 +26,7 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.snackbar.Snackbar;
 import com.javandroid.accounting_app.R;
 import com.javandroid.accounting_app.data.model.ProductEntity;
 import com.javandroid.accounting_app.ui.adapter.product.ProductEditorAdapter;
@@ -43,6 +45,7 @@ public class ProductEditorFragment extends Fragment {
     private ActivityResultLauncher<Intent> csvFilePickerLauncher;
     private static final String TAG = "ProductEditorFragment";
     private EditText etSearch;
+    private com.google.android.material.chip.Chip chipSortByStock;
 
 
     @Override
@@ -56,19 +59,27 @@ public class ProductEditorFragment extends Fragment {
                     if (result.getResultCode() == getActivity().RESULT_OK && result.getData() != null) {
                         Uri uri = result.getData().getData();
                         if (uri != null) {
-                            List<ProductEntity> csvProducts = loadProductsFromUri(requireContext(), uri);
-                            if (csvProducts != null && !csvProducts.isEmpty()) {
-                                for (ProductEntity p : csvProducts) {
-                                    // This will insert or replace based on primary key if products have IDs,
-                                    // or insert as new if IDs are 0.
-                                    // Consider if CSV products should always be treated as new or if they can update existing.
-                                    productViewModel.insertProduct(p);
-                                }
-                                Toast.makeText(getContext(), csvProducts.size() + " products processed from CSV!", Toast.LENGTH_SHORT).show();
-                                // LiveData should refresh the list.
-                            } else {
-                                Toast.makeText(getContext(), "No products found or error in CSV.", Toast.LENGTH_SHORT).show();
-                            }
+                            // Show a loading indicator
+                            // ProgressBar progressBar = view.findViewById(R.id.your_progress_bar);
+                            // progressBar.setVisibility(View.VISIBLE);
+
+                            // Perform parsing on a background thread
+                            new Thread(() -> {
+                                List<ProductEntity> csvProducts = loadProductsFromUri(requireContext(), uri);
+
+                                // Post results back to the main thread
+                                getActivity().runOnUiThread(() -> {
+                                    // progressBar.setVisibility(View.GONE);
+                                    if (csvProducts != null && !csvProducts.isEmpty()) {
+                                        for (ProductEntity p : csvProducts) {
+                                            productViewModel.insertProduct(p);
+                                        }
+                                        Toast.makeText(getContext(), csvProducts.size() + " products processed!", Toast.LENGTH_SHORT).show();
+                                    } else {
+                                        Toast.makeText(getContext(), "No products found or error in CSV.", Toast.LENGTH_SHORT).show();
+                                    }
+                                });
+                            }).start();
                         }
                     }
                 });
@@ -86,8 +97,10 @@ public class ProductEditorFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         RecyclerView recyclerView = view.findViewById(R.id.recycler_products);
-        Button btnSaveChanges = view.findViewById(R.id.btn_save_product_changes);
+//        Button btnSaveChanges = view.findViewById(R.id.btn_save_product_changes);
+        com.google.android.material.floatingactionbutton.FloatingActionButton btnSaveChanges = view.findViewById(R.id.btn_save_product_changes);
         Button btnLoadCsv = view.findViewById(R.id.btn_load_csv);
+        chipSortByStock = view.findViewById(R.id.chip_sort_by_stock);
         etSearch = view.findViewById(R.id.et_search);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -105,23 +118,43 @@ public class ProductEditorFragment extends Fragment {
                 Log.d(TAG, "Fragment Listener: Quantity changed for " + productWithChanges.getName());
             }
 
+            //            @Override
+//            public void onDelete(ProductEntity productToDelete) {
+//                // ViewModel handles DB deletion. LiveData will update the list.
+//                productViewModel.deleteProduct(productToDelete);
+//                // For immediate UI update, tell adapter to remove from its display source and re-filter
+//                adapter.removeItemFromDisplay(productToDelete); // New method in adapter
+//                Toast.makeText(getContext(), productToDelete.getName() + " deleted.", Toast.LENGTH_SHORT).show();
+//
+//            }
+            // In your adapter's listener callback within the fragment
             @Override
             public void onDelete(ProductEntity productToDelete) {
-                // ViewModel handles DB deletion. LiveData will update the list.
-                productViewModel.deleteProduct(productToDelete);
-                // For immediate UI update, tell adapter to remove from its display source and re-filter
-                adapter.removeItemFromDisplay(productToDelete); // New method in adapter
-                Toast.makeText(getContext(), productToDelete.getName() + " deleted.", Toast.LENGTH_SHORT).show();
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Confirm Delete")
+                        .setMessage("Are you sure you want to delete '" + productToDelete.getName() + "'?")
+                        .setPositiveButton("Delete", (dialog, which) -> {
+                            // User confirmed the deletion
+                            productViewModel.deleteProduct(productToDelete);
 
+                            // Use Snackbar for feedback with an Undo option
+                            Snackbar.make(requireView(), "Product deleted", Snackbar.LENGTH_LONG)
+                                    .setAction("Undo", v -> {
+                                        // Re-insert the product if user clicks Undo
+                                        productViewModel.insertProduct(productToDelete);
+                                    })
+                                    .show();
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
             }
         });
         recyclerView.setAdapter(adapter);
 
-        productViewModel.getAllProducts().observe(getViewLifecycleOwner(), products -> {
+        productViewModel.getProducts().observe(getViewLifecycleOwner(), products -> {
             if (products != null) {
-                Log.d(TAG, "Full product list updated from ViewModel: " + products.size() + " items.");
+                Log.d(TAG, "Product list updated from ViewModel: " + products.size() + " items.");
                 adapter.setMasterList(products); // Update adapter's master list
-                // The filter in setMasterList will call submitList on ListAdapter.
             }
         });
 
@@ -170,6 +203,12 @@ public class ProductEditorFragment extends Fragment {
                 adapter.setCurrentFilterQuery(query); // Store query for removeItemFromDisplay
                 adapter.filter(query);
             }
+        });
+
+        // Add a listener for the new sort chip
+        chipSortByStock.setOnClickListener(v -> {
+            productViewModel.changeSortOrder(ProductViewModel.SortType.BY_STOCK);
+            Toast.makeText(getContext(), "Sorted by lowest stock", Toast.LENGTH_SHORT).show();
         });
     }
 

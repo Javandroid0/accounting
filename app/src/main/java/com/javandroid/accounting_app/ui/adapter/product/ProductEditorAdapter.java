@@ -177,7 +177,7 @@ public class ProductEditorAdapter extends ListAdapter<ProductEntity, ProductEdit
     class ProductViewHolder extends RecyclerView.ViewHolder {
         TextView tvProductName;
         EditText etSellPrice, etBuyPrice, etQuantity;
-        Button btnDelete;
+        android.widget.ImageButton btnDelete;
 
         private TextWatcher sellPriceWatcher, buyPriceWatcher, quantityWatcher;
         private long currentProductId; // To correctly update the modifiedProducts map

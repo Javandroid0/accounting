@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.Transformations;
 
 import com.javandroid.accounting_app.data.model.ProductEntity;
 import com.javandroid.accounting_app.data.repository.ProductRepository;
@@ -20,13 +21,42 @@ public class ProductViewModel extends AndroidViewModel {
     private final ProductRepository productRepository;
     private final LiveData<List<ProductEntity>> allProducts;
     private final MutableLiveData<ProductEntity> selectedProduct = new MutableLiveData<>();
+
+    private final MutableLiveData<SortType> sortOrder = new MutableLiveData<>(SortType.DEFAULT);
+
     private final ExecutorService executor; // For background tasks if needed directly by VM
+
+    private final LiveData<List<ProductEntity>> products;
+
+    public enum SortType {
+        DEFAULT,
+        BY_STOCK
+    }
 
     public ProductViewModel(@NonNull Application application) {
         super(application);
         productRepository = new ProductRepository(application);
         allProducts = productRepository.getAllProducts();
         executor = Executors.newSingleThreadExecutor(); // Initialize executor
+        products = Transformations.switchMap(sortOrder, sort -> {
+            if (sort == SortType.BY_STOCK) {
+                return productRepository.getAllProductsSortedByStock();
+            } else {
+                return allProducts; // The original, default-sorted list
+            }
+        });
+    }
+
+    // 6. Your Fragment will call this method to get the list.
+//    Rename the old `getAllProducts()` to avoid confusion if you prefer,
+//    or replace it with this one.
+    public LiveData<List<ProductEntity>> getProducts() {
+        return products;
+    }
+
+    // 7. Add a method for the Fragment to call to change the sort order
+    public void changeSortOrder(SortType newSortType) {
+        sortOrder.setValue(newSortType);
     }
 
     public LiveData<List<ProductEntity>> getAllProducts() {

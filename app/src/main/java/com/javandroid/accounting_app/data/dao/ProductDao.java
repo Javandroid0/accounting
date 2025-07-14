@@ -43,4 +43,8 @@ public interface ProductDao {
     @Query("DELETE FROM products")
     void deleteAll(); // Optional: Delete all
 
+    // Add this new method to your ProductDao.java
+    @Query("SELECT * FROM products ORDER BY stock ASC")
+    LiveData<List<ProductEntity>> getAllProductsSortedByStock();
+
 }
