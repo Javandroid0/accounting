@@ -17,10 +17,10 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:hint="Search by Order ID..."
-            android:inputType="number"
+            android:hint="Search by Order ID or Date..."
+            android:inputType="text"
             android:padding="12dp"
-            android:background="@android:drawable/editbox_background"/>
+            android:background="@android:drawable/editbox_background" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -29,7 +29,7 @@
             android:textStyle="bold"
             android:textSize="18sp"
             android:layout_marginStart="8dp"
-            android:layout_gravity="center_vertical"/>
+            android:layout_gravity="center_vertical" />
     </LinearLayout>
 
     <FrameLayout
@@ -65,7 +65,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Export CSV"
-            android:layout_marginEnd="4dp"/>
+            android:layout_marginEnd="4dp" />
 
         <Button
             android:id="@+id/btn_save_changes"
@@ -73,6 +73,6 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Refresh List"
-            android:layout_marginStart="4dp"/>
+            android:layout_marginStart="4dp" />
     </LinearLayout>
 </LinearLayout>

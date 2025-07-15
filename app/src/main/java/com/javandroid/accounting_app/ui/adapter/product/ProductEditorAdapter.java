@@ -41,6 +41,8 @@ public class ProductEditorAdapter extends ListAdapter<ProductEntity, ProductEdit
     private final Map<Long, ProductEntity> modifiedProducts = new HashMap<>();
     // To hold the full list from the ViewModel, used for filtering before submitting to ListAdapter
     private List<ProductEntity> fullProductList = new ArrayList<>();
+    // Add a field to store the current search query
+    private String currentFilterQuery = "";
 
 
     public ProductEditorAdapter(OnProductChangeListener listener) {
@@ -56,11 +58,13 @@ public class ProductEditorAdapter extends ListAdapter<ProductEntity, ProductEdit
      */
     public void setMasterList(List<ProductEntity> products) {
         this.fullProductList = products != null ? new ArrayList<>(products) : new ArrayList<>();
-        // Optionally, clear modifications if the master list is a complete refresh from DB
-        // For now, modifications are kept.
         reconcileModificationsWithNewMasterList();
-        filter(""); // Apply empty filter to display all items from the new master list initially
+
+        // **THE FIX IS HERE:**
+        // Instead of resetting with filter(""), re-apply the existing filter.
+        filter(this.currentFilterQuery);
     }
+
 
     private void reconcileModificationsWithNewMasterList() {
         Map<Long, ProductEntity> newModifiedProducts = new HashMap<>();
@@ -85,28 +89,26 @@ public class ProductEditorAdapter extends ListAdapter<ProductEntity, ProductEdit
 
     /**
      * Filters the master list and submits the filtered result to the ListAdapter.
-     *
-     * @param query The search query.
+     * It also updates the currentFilterQuery.
      */
     public void filter(String query) {
+        // Ensure query is not null
+        this.currentFilterQuery = (query != null) ? query.toLowerCase().trim() : "";
+
         List<ProductEntity> filteredList = new ArrayList<>();
-        if (query == null || query.isEmpty()) {
+        if (currentFilterQuery.isEmpty()) {
             filteredList.addAll(fullProductList);
         } else {
-            String lowerCaseQuery = query.toLowerCase().trim();
             for (ProductEntity product : fullProductList) {
-                // Check if the product itself OR a modified version matches
                 ProductEntity productToCheck = modifiedProducts.getOrDefault(product.getProductId(), product);
-                if (productToCheck.getName().toLowerCase().contains(lowerCaseQuery) ||
-                        productToCheck.getBarcode().toLowerCase().contains(lowerCaseQuery)) {
-                    filteredList.add(product); // Add original from full list, ViewHolder will display modified if exists
+                if (productToCheck.getName().toLowerCase().contains(currentFilterQuery) ||
+                        productToCheck.getBarcode().toLowerCase().contains(currentFilterQuery)) {
+                    filteredList.add(product);
                 }
             }
         }
-        // Submit the filtered list of original products. ViewHolder will handle displaying modified values.
         super.submitList(filteredList);
     }
-
 
     /**
      * Gets the list of products to be saved, including all modifications.
@@ -148,7 +150,7 @@ public class ProductEditorAdapter extends ListAdapter<ProductEntity, ProductEdit
         filter(getCurrentFilterQuery()); // Re-filter and submit to update ListAdapter
     }
 
-    private String currentFilterQuery = ""; // Store current filter query
+//    private String currentFilterQuery = ""; // Store current filter query
 
     public void setCurrentFilterQuery(String query) {
         this.currentFilterQuery = query != null ? query : "";

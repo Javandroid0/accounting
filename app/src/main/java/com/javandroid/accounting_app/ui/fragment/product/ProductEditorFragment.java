@@ -188,6 +188,7 @@ public class ProductEditorFragment extends Fragment {
             csvFilePickerLauncher.launch(intent);
         });
 
+// In onViewCreated(), find your TextWatcher
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -195,12 +196,13 @@ public class ProductEditorFragment extends Fragment {
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
+
             }
 
             @Override
             public void afterTextChanged(Editable s) {
+                // Just pass the new text to the adapter's filter method.
                 String query = s.toString();
-                adapter.setCurrentFilterQuery(query); // Store query for removeItemFromDisplay
                 adapter.filter(query);
             }
         });
