@@ -1,19 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="16dp">
 
-    <!-- User and Customer Info Row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginBottom="8dp">
 
-        <!-- Customer Info -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardCustomer"
             android:layout_width="0dp"
@@ -26,7 +25,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="8dp">
+                android:padding="12dp">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -40,12 +39,11 @@
                     android:id="@+id/textViewCustomerName"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="No customer selected"
+                    android:text="مشتری انتخاب نشده است"
                     android:textAppearance="?attr/textAppearanceBody1" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- User Info -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardUser"
             android:layout_width="0dp"
@@ -58,7 +56,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="8dp">
+                android:padding="12dp">
 
                 <TextView
                     android:id="@+id/textViewUserName"
@@ -72,7 +70,6 @@
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 
-    <!-- Barcode Input -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -102,48 +99,57 @@
             app:icon="@android:drawable/ic_menu_camera" />
     </LinearLayout>
 
-    <!-- Order Items List -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="8dp"
+        tools:listitem="@layout/item_order" />
 
-    <!-- Order Total -->
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         app:cardElevation="4dp" />
 
-    <!-- Action Buttons -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:weightSum="3">
+        android:gravity="center">
+
+        <CheckBox
+            android:id="@+id/checkbox_unpaid"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="پرداخت نشده"
+            android:checked="false" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnPrintOrder"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_marginEnd="4dp"
             android:layout_weight="1"
+            android:layout_marginEnd="8dp"
             android:text="چاپ"
-            android:textSize="24sp"
+            android:textSize="18sp"
             app:icon="@android:drawable/ic_menu_send" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnConfirmOrder"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
             android:layout_weight="2"
-            android:text="تایید:"
-            android:textSize="24sp"
+            android:text="تایید"
+            android:textSize="18sp"
             app:icon="@android:drawable/ic_menu_save" />
     </LinearLayout>
 

@@ -56,6 +56,14 @@
                 android:layout_height="wrap_content"
                 android:text="Customer ID: 1"
                 android:textAppearance="?attr/textAppearanceBody2" />
+
+            <TextView
+                android:id="@+id/order_payment_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Unpaid"
+                android:textAppearance="?attr/textAppearanceBody2" />
         </LinearLayout>
 
     </LinearLayout>

@@ -43,7 +43,8 @@ public class SavedOrdersAdapter extends ListAdapter<OrderEntity, SavedOrdersAdap
         public boolean areContentsTheSame(@NonNull OrderEntity oldItem, @NonNull OrderEntity newItem) {
             return oldItem.getTotal() == newItem.getTotal() &&
                     oldItem.getDate().equals(newItem.getDate()) &&
-                    oldItem.getCustomerId() == newItem.getCustomerId();
+                    oldItem.getCustomerId() == newItem.getCustomerId() &&
+                    oldItem.isPaid() == newItem.isPaid();
         }
     };
 
@@ -143,12 +144,15 @@ public class SavedOrdersAdapter extends ListAdapter<OrderEntity, SavedOrdersAdap
         private final TextView totalView;
         private final TextView customerIdView;
 
+        private final TextView paymentStatusView;
+
         public OrderViewHolder(@NonNull View itemView) {
             super(itemView);
             orderIdView = itemView.findViewById(R.id.order_id);
             dateView = itemView.findViewById(R.id.order_date);
             totalView = itemView.findViewById(R.id.order_total);
             customerIdView = itemView.findViewById(R.id.customer_id);
+            paymentStatusView = itemView.findViewById(R.id.order_payment_status);
 
             itemView.setOnClickListener(v -> {
                 int position = getAdapterPosition();
@@ -163,6 +167,14 @@ public class SavedOrdersAdapter extends ListAdapter<OrderEntity, SavedOrdersAdap
             dateView.setText(order.getDate());
             totalView.setText(String.format("%.2f", order.getTotal()));
             customerIdView.setText("Customer ID: " + order.getCustomerId());
+
+            if (order.isPaid()) {
+                paymentStatusView.setText("Paid");
+                paymentStatusView.setTextColor(itemView.getResources().getColor(android.R.color.holo_green_dark));
+            } else {
+                paymentStatusView.setText("Unpaid");
+                paymentStatusView.setTextColor(itemView.getResources().getColor(android.R.color.holo_red_dark));
+            }
         }
     }
 }

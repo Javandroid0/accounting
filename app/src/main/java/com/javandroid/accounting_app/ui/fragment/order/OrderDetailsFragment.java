@@ -53,6 +53,7 @@ public class OrderDetailsFragment extends Fragment implements OrderItemInteracti
     private TextView tvOrderTotalValue;
     private Button btnToggleEditSave;
     private Button btnCancelOrDelete;
+    private TextView tvPaymentStatus;
 
     private long orderIdArgs;
     private boolean isInEditMode = false;
@@ -98,7 +99,9 @@ public class OrderDetailsFragment extends Fragment implements OrderItemInteracti
         recyclerViewOrderItems = view.findViewById(R.id.recycler_order_items);
         btnToggleEditSave = view.findViewById(R.id.btn_save); // XML ID for "Edit Order" / "Save Changes"
         btnCancelOrDelete = view.findViewById(R.id.btn_cancel); // XML ID for "Delete Order" / "Cancel Edit"
+        tvPaymentStatus = view.findViewById(R.id.tv_payment_status);
     }
+
 
     private void setupRecyclerView() {
         recyclerViewOrderItems.setLayoutManager(new LinearLayoutManager(requireContext()));
@@ -192,6 +195,14 @@ public class OrderDetailsFragment extends Fragment implements OrderItemInteracti
             tvOrderDateValue.setText(order.getDate());
             NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault());
             tvOrderTotalValue.setText(currencyFormat.format(order.getTotal()));
+
+            if (order.isPaid()) {
+                tvPaymentStatus.setText("Paid");
+                tvPaymentStatus.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
+            } else {
+                tvPaymentStatus.setText("Unpaid");
+                tvPaymentStatus.setTextColor(getResources().getColor(android.R.color.holo_red_dark));
+            }
         }
     }
 

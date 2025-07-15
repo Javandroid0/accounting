@@ -24,11 +24,14 @@ public class OrderEntity {
 
     public long userId;
 
+    public boolean isPaid;
+
     public OrderEntity(String date, double total, long customerId, long userId) {
         this.date = date;
         this.total = total;
         this.customerId = customerId;
         this.userId = userId;
+        this.isPaid = true;
     }
 
     public long getOrderId() {
@@ -69,5 +72,13 @@ public class OrderEntity {
 
     public void setUserId(long userId) {
         this.userId = userId;
+    }
+
+    public boolean isPaid() {
+        return isPaid;
+    }
+
+    public void setPaid(boolean paid) {
+        isPaid = paid;
     }
 }

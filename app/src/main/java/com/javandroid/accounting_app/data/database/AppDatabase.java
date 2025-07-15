@@ -25,7 +25,7 @@ import com.javandroid.accounting_app.data.model.UserEntity;
         OrderItemEntity.class,
         UserEntity.class,
         CustomerEntity.class
-}, version = 5, exportSchema = false)
+}, version = 6, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
 
     private static volatile AppDatabase instance;
@@ -48,7 +48,7 @@ public abstract class AppDatabase extends RoomDatabase {
                                     context.getApplicationContext(),
                                     AppDatabase.class,
                                     "shop-db")
-                            .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
+                            .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                             .build();
                 }
             }
@@ -140,6 +140,13 @@ public abstract class AppDatabase extends RoomDatabase {
             // Create indices for better query performance
             database.execSQL("CREATE INDEX IF NOT EXISTS index_order_items_orderId ON order_items(orderId)");
             database.execSQL("CREATE INDEX IF NOT EXISTS index_order_items_productId ON order_items(productId)");
+        }
+    };
+
+    public static final Migration MIGRATION_5_6 = new Migration(5, 6) {
+        @Override
+        public void migrate(SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE orders ADD COLUMN isPaid INTEGER NOT NULL DEFAULT 0");
         }
     };
 

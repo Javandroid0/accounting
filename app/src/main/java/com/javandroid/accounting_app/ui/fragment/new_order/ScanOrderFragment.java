@@ -6,6 +6,7 @@ import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
 import android.widget.Toast; // Added for user feedback
 
 import androidx.annotation.NonNull;
@@ -17,7 +18,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import com.javandroid.accounting_app.MainActivity;
 // R class should be imported from your app's package
 
+import com.javandroid.accounting_app.R;
 import com.javandroid.accounting_app.data.model.CustomerEntity;
+import com.javandroid.accounting_app.data.model.OrderEntity;
 import com.javandroid.accounting_app.data.model.UserEntity;
 import com.javandroid.accounting_app.databinding.FragmentScanOrderBinding;
 // Use ScanOrderAdapter
@@ -55,6 +58,8 @@ public class ScanOrderFragment extends Fragment {
     private OrderScanningDelegate scanningDelegate;
     private OrderPrintingDelegate printingDelegate;
     private OrderManagementDelegate managementDelegate;
+
+    private CheckBox checkboxUnpaid;
     // private boolean isInitialLoad = true; // Not currently used
 
     @Override
@@ -78,6 +83,7 @@ public class ScanOrderFragment extends Fragment {
 
         initViewModels();
         // initViews now part of setupListeners or done via binding
+        checkboxUnpaid = view.findViewById(R.id.checkbox_unpaid);
         initDelegates(); // ManagementDelegate needs ViewModels
         setupRecyclerView(); // Pass the delegate as listener
         setupListeners();
@@ -93,6 +99,7 @@ public class ScanOrderFragment extends Fragment {
         customerViewModel = new ViewModelProvider(requireActivity()).get(CustomerViewModel.class);
         userViewModel = new ViewModelProvider(requireActivity()).get(UserViewModel.class);
         customerOrderStateViewModel = new ViewModelProvider(requireActivity()).get(CustomerOrderStateViewModel.class);
+
         Log.d(TAG, "ViewModels initialized");
     }
 
@@ -130,6 +137,17 @@ public class ScanOrderFragment extends Fragment {
         binding.btnPrintOrder.setOnClickListener(v -> {
             if (managementDelegate != null && printingDelegate != null) {
                 managementDelegate.prepareOrderForPrinting(() -> printingDelegate.checkPermissionsAndPrint(false));
+            }
+        });
+
+        binding.btnConfirmOrder.setOnClickListener(v -> {
+            if (managementDelegate != null) {
+                OrderEntity currentOrder = currentOrderViewModel.getFragmentOrderLiveData().getValue();
+                if (currentOrder != null) {
+                    // If the "Unpaid" checkbox is checked, the order is not paid.
+                    currentOrder.setPaid(!checkboxUnpaid.isChecked());
+                }
+                managementDelegate.confirmOrder();
             }
         });
 

@@ -89,7 +89,7 @@ public class OrderManagementDelegate implements OrderItemInteractionListener {
                 MaterialButton btnConfirmOrder = fragment.getView().findViewById(
                         com.javandroid.accounting_app.R.id.btnConfirmOrder);
                 if (btnConfirmOrder != null) {
-                    btnConfirmOrder.setText(String.format(Locale.US, "تایید: %.2f", currentOrder.getTotal()));
+                    btnConfirmOrder.setText(String.format(Locale.US, "تایید: %.3f", currentOrder.getTotal()));
                 }
             }
         }
