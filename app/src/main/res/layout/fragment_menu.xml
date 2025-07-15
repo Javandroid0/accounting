@@ -13,11 +13,11 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:padding="16dp"
-        android:text="New Order"
+        android:text="سفارش جدید"
         android:textSize="18sp"
         app:icon="@android:drawable/ic_input_add"
         app:iconGravity="textStart"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_view_orders"
@@ -25,11 +25,11 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:padding="16dp"
-        android:text="View Orders"
+        android:text="مشاهده سفارش ها"
         android:textSize="18sp"
         app:icon="@android:drawable/ic_menu_view"
         app:iconGravity="textStart"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_products"
@@ -37,11 +37,11 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:padding="16dp"
-        android:text="Products"
+        android:text="محصولات"
         android:textSize="18sp"
         app:icon="@android:drawable/ic_menu_sort_by_size"
         app:iconGravity="textStart"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_customers"
@@ -49,10 +49,10 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:padding="16dp"
-        android:text="Customers"
+        android:text="مشتری ها"
         android:textSize="18sp"
         app:icon="@android:drawable/ic_menu_myplaces"
         app:iconGravity="textStart"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
 </LinearLayout> 

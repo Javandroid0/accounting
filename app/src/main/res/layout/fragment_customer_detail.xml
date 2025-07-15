@@ -36,7 +36,7 @@
                 android:id="@+id/tvProfitHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Sales Profit"
+                android:text="گزارش مشتری"
                 android:textStyle="bold"
                 android:textSize="18sp" />
 
@@ -51,28 +51,28 @@
                     android:id="@+id/tvCurrentUser"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="User: --"
+                    android:text="فروشنده: --"
                     android:textSize="16sp" />
 
                 <TextView
                     android:id="@+id/tvCurrentUserProfit"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="With this customer: ₹0.00"
+                    android:text="With this customer: 0.00"
                     android:textSize="14sp" />
 
                 <TextView
                     android:id="@+id/tvUserTotalProfit"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Total profit: ₹0.00"
+                    android:text="جمع سود: 0.00"
                     android:textSize="14sp" />
 
                 <TextView
                     android:id="@+id/tvCustomerTotalBought"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Total bought: 0.00"
+                    android:text="جمع خرید: 0.00"
                     android:textSize="16sp"
                     android:paddingTop="4dp"
                     android:textStyle="bold" />
