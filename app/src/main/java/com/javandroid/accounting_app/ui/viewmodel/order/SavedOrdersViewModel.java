@@ -9,6 +9,7 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData; // Added for profit LiveData
+import androidx.lifecycle.Transformations;
 
 import com.javandroid.accounting_app.data.model.OrderEntity;
 // import com.javandroid.accounting_app.data.model.OrderItemEntity; // Not directly used here
@@ -34,12 +35,46 @@ public class SavedOrdersViewModel extends AndroidViewModel {
     private final MutableLiveData<Double> userProfitLiveData = new MutableLiveData<>();
     private final MutableLiveData<Double> userCustomerProfitLiveData = new MutableLiveData<>();
 
+    private final MutableLiveData<SortType> sortOrder = new MutableLiveData<>(SortType.BY_DATE);
+    private final LiveData<List<OrderEntity>> sortedOrders;
+
+    //    public SavedOrdersViewModel(@NonNull Application application) {
+//        super(application);
+//        orderRepository = new OrderRepository(application);
+//        // orderItemRepository = new OrderItemRepository(application); // Only if needed internally
+//        // sessionManager = OrderSessionManager.getInstance();
+//        // stateRepository = sessionManager.getCurrentRepository();
+//    }
+    public enum SortType {
+        BY_DATE, BY_TOTAL, BY_CUSTOMER
+    }
+
+
     public SavedOrdersViewModel(@NonNull Application application) {
         super(application);
         orderRepository = new OrderRepository(application);
-        // orderItemRepository = new OrderItemRepository(application); // Only if needed internally
-        // sessionManager = OrderSessionManager.getInstance();
-        // stateRepository = sessionManager.getCurrentRepository();
+
+        sortedOrders = Transformations.switchMap(sortOrder, sort -> {
+            switch (sort) {
+                case BY_TOTAL:
+                    return orderRepository.getAllOrdersSortedByTotal();
+                case BY_CUSTOMER:
+                    return orderRepository.getAllOrdersSortedByCustomer();
+                case BY_DATE:
+                default:
+                    return orderRepository.getAllOrders(); // Default is by date (newest first)
+            }
+        });
+    }
+
+    // This method replaces the old getAllOrders() for the fragment to observe
+    public LiveData<List<OrderEntity>> getSortedOrders() {
+        return sortedOrders;
+    }
+
+    // Method to be called by the fragment to change the sort order
+    public void changeSortOrder(SortType newSortType) {
+        sortOrder.setValue(newSortType);
     }
 
     public LiveData<List<OrderEntity>> getAllOrders() {

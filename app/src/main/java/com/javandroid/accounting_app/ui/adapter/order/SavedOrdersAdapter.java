@@ -22,9 +22,16 @@ public class SavedOrdersAdapter extends ListAdapter<OrderEntity, SavedOrdersAdap
         void onOrderClick(OrderEntity order);
     }
 
+    public enum SearchField {
+        ALL,
+        ID,
+        DATE,
+        CUSTOMER,
+        USER
+    }
+
     private final OnOrderClickListener listener;
     private List<OrderEntity> originalList;
-    private List<OrderEntity> filteredList;
 
     private static final DiffUtil.ItemCallback<OrderEntity> DIFF_CALLBACK = new DiffUtil.ItemCallback<OrderEntity>() {
         @Override
@@ -44,7 +51,6 @@ public class SavedOrdersAdapter extends ListAdapter<OrderEntity, SavedOrdersAdap
         super(DIFF_CALLBACK);
         this.listener = listener;
         this.originalList = new ArrayList<>();
-        this.filteredList = new ArrayList<>();
     }
 
     @Override
@@ -53,52 +59,49 @@ public class SavedOrdersAdapter extends ListAdapter<OrderEntity, SavedOrdersAdap
         super.submitList(list != null ? new ArrayList<>(list) : null);
     }
 
-    public void filter(String query) {
+    /**
+     * UPDATED filter method that accepts a search field.
+     *
+     * @param query The text to search for.
+     * @param field The field to search within.
+     */
+    public void filter(String query, SearchField field) {
         if (query == null || query.isEmpty()) {
-            submitList(originalList);
+            super.submitList(new ArrayList<>(originalList));
             return;
         }
 
-        filteredList = new ArrayList<>();
-        String trimmedQuery = query.trim();
+        List<OrderEntity> newFilteredList = new ArrayList<>();
+        String lowerCaseQuery = query.toLowerCase().trim();
 
-        try {
-            // First try to parse as an integer for exact Order ID matching
-            long searchOrderId = Long.parseLong(trimmedQuery);
-
-            // Find orders that exactly match the ID
-            for (OrderEntity order : originalList) {
-                if (order.getOrderId() == searchOrderId) {
-                    filteredList.add(order);
-                }
-            }
-
-            // If we found exact matches, return only those
-            if (!filteredList.isEmpty()) {
-                submitList(filteredList);
-                return;
-            }
-        } catch (NumberFormatException e) {
-            // Not a valid number, so continue with prefix search
-        }
-
-        // If no exact match was found or the query wasn't a number,
-        // search by order ID prefix or date
-        String lowerCaseQuery = trimmedQuery.toLowerCase();
         for (OrderEntity order : originalList) {
-            // Check if query is contained in order ID
-            String orderIdString = String.valueOf(order.getOrderId());
-            if (orderIdString.startsWith(trimmedQuery)) {
-                filteredList.add(order);
-                continue;
+            boolean matches = false;
+            switch (field) {
+                case ID:
+                    matches = String.valueOf(order.getOrderId()).contains(lowerCaseQuery);
+                    break;
+                case DATE:
+                    matches = order.getDate().toLowerCase().contains(lowerCaseQuery);
+                    break;
+                case CUSTOMER:
+                    matches = String.valueOf(order.getCustomerId()).contains(lowerCaseQuery);
+                    break;
+                case USER:
+                    matches = String.valueOf(order.getUserId()).contains(lowerCaseQuery);
+                    break;
+                case ALL:
+                default:
+                    matches = String.valueOf(order.getOrderId()).contains(lowerCaseQuery) ||
+                            order.getDate().toLowerCase().contains(lowerCaseQuery) ||
+                            String.valueOf(order.getCustomerId()).contains(lowerCaseQuery) ||
+                            String.valueOf(order.getUserId()).contains(lowerCaseQuery);
+                    break;
             }
-
-            // Secondary search: Also check date
-            if (order.getDate().toLowerCase().contains(lowerCaseQuery)) {
-                filteredList.add(order);
+            if (matches) {
+                newFilteredList.add(order);
             }
         }
-        submitList(filteredList);
+        super.submitList(newFilteredList);
     }
 
     /**

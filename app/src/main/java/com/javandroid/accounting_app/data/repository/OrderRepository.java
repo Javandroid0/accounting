@@ -92,7 +92,7 @@ public class OrderRepository {
     // insertOrderItem - MOVED to OrderItemRepository
 
     public LiveData<List<OrderEntity>> getAllOrders() {
-        Log.d(TAG, "Getting all orders");
+        Log.d(TAG, "Getting all orders (sorted by newest)");
         return orderDao.getAllOrders();
     }
 
@@ -223,5 +223,13 @@ public class OrderRepository {
             Log.e(TAG, "Error calculating profit (sync): " + e.getMessage(), e);
             return 0.0;
         }
+    }
+
+    public LiveData<List<OrderEntity>> getAllOrdersSortedByTotal() {
+        return orderDao.getAllOrdersSortedByTotal();
+    }
+
+    public LiveData<List<OrderEntity>> getAllOrdersSortedByCustomer() {
+        return orderDao.getAllOrdersSortedByCustomer();
     }
 }

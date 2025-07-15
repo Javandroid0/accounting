@@ -28,6 +28,7 @@ import androidx.navigation.Navigation;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.chip.ChipGroup;
 import com.javandroid.accounting_app.R;
 import com.javandroid.accounting_app.data.model.OrderEntity;
 // OrderItemEntity and OrderEditorAdapter are not directly used by this fragment anymore
@@ -55,13 +56,18 @@ public class OrderEditorFragment extends Fragment {
     private static final int PERMISSION_REQUEST_WRITE_EXTERNAL_STORAGE = 1001;
 
     private SavedOrdersViewModel savedOrdersViewModel;
-    private OrderEditViewModel orderEditViewModel; // To observe events like order deletion
+    //    private OrderEditViewModel orderEditViewModel; // To observe events like order deletion
     private SavedOrdersAdapter savedOrdersAdapter;
     private RecyclerView recyclerViewOrders;
     private TextView emptyStateTextView;
     private EditText etSearchOrders;
     private Button btnExportCsv;
-    private Button btnRefreshList; // Renamed from btn_save_changes
+    //    private Button btnRefreshList;
+    private ChipGroup chipGroupSort;
+
+    private ChipGroup chipGroupSearchField;
+
+    private SavedOrdersAdapter.SearchField currentSearchField = SavedOrdersAdapter.SearchField.ALL;
 
     private Handler mainThreadHandler;
 
@@ -69,7 +75,7 @@ public class OrderEditorFragment extends Fragment {
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         savedOrdersViewModel = new ViewModelProvider(requireActivity()).get(SavedOrdersViewModel.class);
-        orderEditViewModel = new ViewModelProvider(requireActivity()).get(OrderEditViewModel.class); // For observing events
+//        orderEditViewModel = new ViewModelProvider(requireActivity()).get(OrderEditViewModel.class); // For observing events
         mainThreadHandler = new Handler(Looper.getMainLooper());
     }
 
@@ -95,8 +101,10 @@ public class OrderEditorFragment extends Fragment {
         emptyStateTextView = view.findViewById(R.id.empty_state_text);
         etSearchOrders = view.findViewById(R.id.et_search);
         btnExportCsv = view.findViewById(R.id.btn_export_csv);
-        btnRefreshList = view.findViewById(R.id.btn_save_changes); // Layout ID is btn_save_changes
-        btnRefreshList.setText("Refresh List"); // Update button text
+        chipGroupSort = view.findViewById(R.id.chip_group_sort);
+        chipGroupSearchField = view.findViewById(R.id.chip_group_search_field);
+//        btnRefreshList = view.findViewById(R.id.btn_save_changes); // Layout ID is btn_save_changes
+//        btnRefreshList.setText("Refresh List"); // Update button text
     }
 
     private void setupRecyclerView() {
@@ -121,13 +129,52 @@ public class OrderEditorFragment extends Fragment {
             }
         });
 
-        btnRefreshList.setOnClickListener(v -> refreshOrderList());
+//        btnRefreshList.setOnClickListener(v -> refreshOrderList());
+
+        // Set listener for the chip group to handle sorting
+        chipGroupSort.setOnCheckedChangeListener((group, checkedId) -> {
+            if (checkedId == R.id.chip_sort_date) {
+                savedOrdersViewModel.changeSortOrder(SavedOrdersViewModel.SortType.BY_DATE);
+            } else if (checkedId == R.id.chip_sort_total) {
+                savedOrdersViewModel.changeSortOrder(SavedOrdersViewModel.SortType.BY_TOTAL);
+            } else if (checkedId == R.id.chip_sort_customer) {
+                savedOrdersViewModel.changeSortOrder(SavedOrdersViewModel.SortType.BY_CUSTOMER);
+            }
+        });
 
         etSearchOrders.setOnFocusChangeListener((v, hasFocus) -> {
             if (hasFocus) {
                 Toast.makeText(requireContext(),
                         "Enter Order ID to search. Clear to see all.",
                         Toast.LENGTH_SHORT).show();
+            }
+        });
+        chipGroupSearchField.setOnCheckedChangeListener((group, checkedId) -> {
+            if (checkedId == R.id.chip_search_id) {
+                currentSearchField = SavedOrdersAdapter.SearchField.ID;
+            } else if (checkedId == R.id.chip_search_date) {
+                currentSearchField = SavedOrdersAdapter.SearchField.DATE;
+            } else if (checkedId == R.id.chip_search_customer) {
+                currentSearchField = SavedOrdersAdapter.SearchField.CUSTOMER;
+            } else if (checkedId == R.id.chip_search_user) {
+                currentSearchField = SavedOrdersAdapter.SearchField.USER;
+            } else {
+                currentSearchField = SavedOrdersAdapter.SearchField.ALL;
+            }
+            // Trigger a new filter operation with the current text
+            String query = etSearchOrders.getText().toString();
+            savedOrdersAdapter.filter(query, currentSearchField);
+            updateEmptyState(savedOrdersAdapter.getItemCount() == 0, query);
+        });
+
+        // Set listener for the sort chip group
+        chipGroupSort.setOnCheckedChangeListener((group, checkedId) -> {
+            if (checkedId == R.id.chip_sort_date) {
+                savedOrdersViewModel.changeSortOrder(SavedOrdersViewModel.SortType.BY_DATE);
+            } else if (checkedId == R.id.chip_sort_total) {
+                savedOrdersViewModel.changeSortOrder(SavedOrdersViewModel.SortType.BY_TOTAL);
+            } else if (checkedId == R.id.chip_sort_customer) {
+                savedOrdersViewModel.changeSortOrder(SavedOrdersViewModel.SortType.BY_CUSTOMER);
             }
         });
 
@@ -143,37 +190,27 @@ public class OrderEditorFragment extends Fragment {
             @Override
             public void afterTextChanged(Editable s) {
                 String query = s.toString();
-                savedOrdersAdapter.filter(query);
+                // Pass the currentSearchField to the adapter
+                savedOrdersAdapter.filter(query, currentSearchField);
                 updateEmptyState(savedOrdersAdapter.getItemCount() == 0, query);
             }
         });
     }
 
     private void observeViewModels() {
-        savedOrdersViewModel.getAllOrders().observe(getViewLifecycleOwner(), orders -> {
+        // Observe the new sortedOrders LiveData
+        savedOrdersViewModel.getSortedOrders().observe(getViewLifecycleOwner(), orders -> {
             if (orders != null) {
-                Log.d(TAG, "Observed " + orders.size() + " orders from SavedOrdersViewModel.");
+                Log.d(TAG, "Observed " + orders.size() + " orders from ViewModel.");
 
-                // Reverse the list
-                List<OrderEntity> reversedOrders = new ArrayList<>(orders);
-                Collections.reverse(reversedOrders);
-
-                // Submit the reversed list
+                // The list is already sorted by the ViewModel.
+                // We just need to update the adapter's master list and then apply the current filter.
                 String currentQuery = etSearchOrders.getText().toString();
-                savedOrdersAdapter.submitList(reversedOrders);
-                savedOrdersAdapter.filter(currentQuery);
+                savedOrdersAdapter.submitList(orders);
+                savedOrdersAdapter.filter(currentQuery, currentSearchField);
                 updateEmptyState(savedOrdersAdapter.getItemCount() == 0, currentQuery);
             }
         });
-
-
-        // Observe events from OrderEditViewModel, e.g., if an order was deleted elsewhere
-        // and this list needs to be aware. (This might be redundant if SavedOrdersViewModel.getAllOrders()
-        // is robustly observing database changes).
-        // For example, if OrderEditViewModel had a LiveData for "orderDeletedEvent":
-        // orderEditViewModel.getOrderDeletedEvent().observe(getViewLifecycleOwner(), event -> {
-        //     if (event) refreshOrderList(); // Or let LiveData above handle it
-        // });
     }
 
     private void updateEmptyState(boolean isEmpty, String query) {
@@ -188,19 +225,6 @@ public class OrderEditorFragment extends Fragment {
             emptyStateTextView.setVisibility(View.GONE);
         }
     }
-
-    private void refreshOrderList() {
-        etSearchOrders.setText(""); // Clear search query
-        // The observer for savedOrdersViewModel.getAllOrders() will be triggered
-        // when the list is submitted after clearing the filter, or if data changes.
-        // For an explicit re-fetch if LiveData isn't updating (e.g. data changed outside app's direct ops),
-        // you might need a method in SavedOrdersViewModel to force a query.
-        // For now, clearing the filter and letting LiveData do its work is usually sufficient.
-        savedOrdersAdapter.filter(""); // This will make the adapter use its original full list
-        updateEmptyState(savedOrdersAdapter.getItemCount() == 0, "");
-        Toast.makeText(requireContext(), "List refreshed.", Toast.LENGTH_SHORT).show();
-    }
-
 
     private boolean checkStoragePermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

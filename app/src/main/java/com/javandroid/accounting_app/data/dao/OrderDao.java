@@ -14,9 +14,7 @@ public interface OrderDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     long insertOrder(OrderEntity order);
 
-    // insertOrderItem - MOVED to OrderItemDao
-
-    @Query("SELECT * FROM orders ORDER BY orderId ASC")
+    @Query("SELECT * FROM orders ORDER BY date DESC")
     LiveData<List<OrderEntity>> getAllOrders();
 
     @Query("SELECT * FROM orders ORDER BY orderId ASC")
@@ -28,8 +26,6 @@ public interface OrderDao {
     @Query("SELECT * FROM orders WHERE userId = :userId")
     LiveData<List<OrderEntity>> getOrdersByUserId(long userId);
 
-    // getOrderItems (LiveData) - MOVED to OrderItemDao
-    // getItemsForOrderSync - MOVED to OrderItemDao
 
     @Query("SELECT * FROM orders WHERE orderId = :orderId LIMIT 1")
     LiveData<OrderEntity> getOrderById(long orderId);
@@ -56,15 +52,15 @@ public interface OrderDao {
     @Update
     void updateOrder(OrderEntity order);
 
-    // updateOrderItem - MOVED to OrderItemDao
-
     @Delete
     void deleteOrder(OrderEntity order);
-
-    // deleteOrderItem - MOVED to OrderItemDao
 
     @Query("DELETE FROM orders")
     void deleteAllOrders();
 
-    // deleteAllOrderItems - MOVED to OrderItemDao
+    @Query("SELECT * FROM orders ORDER BY total DESC")
+    LiveData<List<OrderEntity>> getAllOrdersSortedByTotal();
+
+    @Query("SELECT * FROM orders ORDER BY customerId ASC, orderId DESC")
+    LiveData<List<OrderEntity>> getAllOrdersSortedByCustomer();
 }

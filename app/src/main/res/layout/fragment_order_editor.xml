@@ -6,31 +6,96 @@
     android:orientation="vertical"
     android:padding="16dp">
 
-    <LinearLayout
+    <EditText
+        android:id="@+id/et_search"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="8dp"
+        android:background="@android:drawable/editbox_background"
+        android:hint="Search..."
+        android:inputType="text"
+        android:padding="12dp" />
 
-        <EditText
-            android:id="@+id/et_search"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:hint="Search by Order ID or Date..."
-            android:inputType="text"
-            android:padding="12dp"
-            android:background="@android:drawable/editbox_background" />
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none">
 
-        <TextView
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chip_group_search_field"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Order Editor"
-            android:textStyle="bold"
-            android:textSize="18sp"
-            android:layout_marginStart="8dp"
-            android:layout_gravity="center_vertical" />
-    </LinearLayout>
+            app:singleSelection="true">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_search_all"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="All" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_search_id"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Order ID" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_search_date"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Date" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_search_customer"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Customer" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_search_user"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="User" />
+
+        </com.google.android.material.chip.ChipGroup>
+    </HorizontalScrollView>
+
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/chip_group_sort"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:singleSelection="true">
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_sort_date"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="Sort by Date" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_sort_total"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Sort by Total" />
+
+        <com.google.android.material.chip.Chip
+            android:id="@+id/chip_sort_customer"
+            style="@style/Widget.MaterialComponents.Chip.Choice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Sort by Customer" />
+
+    </com.google.android.material.chip.ChipGroup>
+
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -47,32 +112,18 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
+            android:gravity="center"
             android:text="No orders found"
             android:textSize="18sp"
-            android:gravity="center"
             android:visibility="gone" />
     </FrameLayout>
 
-    <LinearLayout
+    <Button
+        android:id="@+id/btn_export_csv"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="8dp">
+        android:layout_marginTop="8dp"
+        android:text="Export Displayed Orders to CSV" />
 
-        <Button
-            android:id="@+id/btn_export_csv"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Export CSV"
-            android:layout_marginEnd="4dp" />
-
-        <Button
-            android:id="@+id/btn_save_changes"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Refresh List"
-            android:layout_marginStart="4dp" />
-    </LinearLayout>
 </LinearLayout>
