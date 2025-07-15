@@ -97,6 +97,12 @@ public class ProductViewModel extends AndroidViewModel {
         return productRepository.getProductById(productId);
     }
 
+    // Add this new method to your ProductViewModel class
+
+    public void deleteAllProducts() {
+        productRepository.deleteAll();
+    }
+
     public void selectProduct(ProductEntity product) {
         selectedProduct.setValue(product);
     }

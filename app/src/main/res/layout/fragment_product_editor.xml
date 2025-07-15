@@ -44,24 +44,30 @@
             android:layout_weight="1"
             app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
-        <Button
-            android:id="@+id/btn_load_csv"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Import from CSV"
-            android:layout_gravity="bottom"
-            style="@style/Widget.MaterialComponents.Button.TextButton" />
+            android:orientation="horizontal"
+            android:layout_gravity="bottom">
+
+            <Button
+                android:id="@+id/btn_delete_all_products"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Delete All"
+                android:textColor="@android:color/holo_red_dark" />
+
+            <Button
+                android:id="@+id/btn_load_csv"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Import from CSV" />
+        </LinearLayout>
 
     </LinearLayout>
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/btn_save_product_changes"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:src="@android:drawable/ic_menu_save"
-        app:tint="@android:color/white"
-        android:contentDescription="Save Changes" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
