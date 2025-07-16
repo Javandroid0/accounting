@@ -195,6 +195,7 @@ public class OrderDetailsFragment extends Fragment implements OrderItemInteracti
             tvOrderDateValue.setText(order.getDate());
             NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(Locale.getDefault());
             tvOrderTotalValue.setText(currencyFormat.format(order.getTotal()));
+//            System.out.println(order.isPaid());
 
             if (order.isPaid()) {
                 tvPaymentStatus.setText("Paid");

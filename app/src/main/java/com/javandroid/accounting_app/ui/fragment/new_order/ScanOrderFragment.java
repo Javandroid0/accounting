@@ -146,6 +146,7 @@ public class ScanOrderFragment extends Fragment {
                 if (currentOrder != null) {
                     // If the "Unpaid" checkbox is checked, the order is not paid.
                     currentOrder.setPaid(!checkboxUnpaid.isChecked());
+                    currentOrderViewModel.updateOrder(currentOrder);
                 }
                 managementDelegate.confirmOrder();
             }

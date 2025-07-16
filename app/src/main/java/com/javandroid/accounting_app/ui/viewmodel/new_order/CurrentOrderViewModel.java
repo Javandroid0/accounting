@@ -63,9 +63,15 @@ public class CurrentOrderViewModel extends AndroidViewModel {
         orderRepository = new OrderRepository(application);
         orderItemRepository = new OrderItemRepository(application);
         sessionManager = OrderSessionManager.getInstance();
-
         // Initial setup of observers for the current session's data
         observeCurrentSessionData();
+    }
+
+    public void updateOrder(OrderEntity order) {
+        OrderStateRepository currentRepo = getCurrentStateRepository();
+        if (order != null && currentRepo != null) {
+            currentRepo.setCurrentOrder(order);
+        }
     }
 
     private OrderStateRepository getCurrentStateRepository() {
@@ -231,6 +237,7 @@ public class CurrentOrderViewModel extends AndroidViewModel {
         final long userId = currentOrderData.getUserId();
         final long customerId = currentOrderData.getCustomerId();
         final double calculatedTotal = calculateTotalFromItems(currentItemsData); // Use fresh total
+        final boolean isPaid = currentOrderData.isPaid();
 
         Log.d(TAG, "Confirming order - Customer: " + customerId + ", User: " + userId +
                 ", Calculated Total: " + calculatedTotal + ", Items: " + currentItemsData.size());
@@ -249,6 +256,7 @@ public class CurrentOrderViewModel extends AndroidViewModel {
                 customerId,
                 userId
         ); // orderId will be 0, DAO will generate
+        orderToInsert.setPaid(isPaid);
 
         final List<OrderItemEntity> finalItemsToSaveInDb = new ArrayList<>();
         for (OrderItemEntity sessionItem : currentItemsData) {
@@ -301,6 +309,7 @@ public class CurrentOrderViewModel extends AndroidViewModel {
         final long userId = currentOrderData.getUserId();
         final long customerId = currentOrderData.getCustomerId();
         final double calculatedTotal = calculateTotalFromItems(currentItemsData);
+        final boolean isPaid = currentOrderData.isPaid();
 
         Log.d(TAG, "Confirming order (then callback) - Customer: " + customerId + ", User: " + userId +
                 ", Total: " + calculatedTotal + ", Items: " + currentItemsData.size());
@@ -316,6 +325,7 @@ public class CurrentOrderViewModel extends AndroidViewModel {
                 new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date()),
                 calculatedTotal, customerId, userId
         );
+        orderToInsert.setPaid(isPaid);
 
         final List<OrderItemEntity> finalItemsToSaveInDb = new ArrayList<>();
         for (OrderItemEntity sessionItem : currentItemsData) {
