@@ -7,6 +7,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
+import android.widget.TextView;
 import android.widget.Toast; // Added for user feedback
 
 import androidx.annotation.NonNull;
@@ -60,6 +61,8 @@ public class ScanOrderFragment extends Fragment {
     private OrderManagementDelegate managementDelegate;
 
     private CheckBox checkboxUnpaid;
+
+    private TextView textViewOrderId;
     // private boolean isInitialLoad = true; // Not currently used
 
     @Override
@@ -84,10 +87,12 @@ public class ScanOrderFragment extends Fragment {
         initViewModels();
         // initViews now part of setupListeners or done via binding
         checkboxUnpaid = view.findViewById(R.id.checkbox_unpaid);
+        textViewOrderId = view.findViewById(R.id.textViewOrderId);
         initDelegates(); // ManagementDelegate needs ViewModels
         setupRecyclerView(); // Pass the delegate as listener
         setupListeners();
         setupObservers();
+
 
         if (scanningDelegate != null) scanningDelegate.refocusBarcodeInput();
     }
@@ -152,6 +157,17 @@ public class ScanOrderFragment extends Fragment {
             }
         });
 
+        currentOrderViewModel.getFragmentOrderLiveData().observe(getViewLifecycleOwner(), order -> {
+            if (order != null) {
+                if (order.getOrderId() > 0) {
+                    textViewOrderId.setText("Order ID: " + order.getOrderId());
+                } else {
+                    // This handles the case where the ID has not been set yet
+                    textViewOrderId.setText("New Order");
+                }
+            }
+        });
+
 //        binding.editTextBarcode.setOnEditorActionListener((v, actionId, event) -> {
 //            scanningDelegate.handleBarcodeInput();
 //            return true;
@@ -167,6 +183,7 @@ public class ScanOrderFragment extends Fragment {
         binding.editTextBarcode.setOnKeyListener((v, keyCode, event) -> {
             if (event.getAction() == KeyEvent.ACTION_UP && keyCode == KeyEvent.KEYCODE_ENTER) {
                 String barcode = binding.editTextBarcode.getText().toString().trim();
+                currentOrderViewModel.initializeNewOrderId();
                 if (!barcode.isEmpty()) {
                     scanningDelegate.handleBarcodeInput();
                     binding.editTextBarcode.setText("");
@@ -254,6 +271,7 @@ public class ScanOrderFragment extends Fragment {
         super.onResume();
         Log.d(TAG, "ScanOrderFragment resumed");
         if (scanningDelegate != null) scanningDelegate.refocusBarcodeInput();
+
     }
 
     @Override

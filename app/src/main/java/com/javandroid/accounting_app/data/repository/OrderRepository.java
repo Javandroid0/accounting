@@ -175,6 +175,18 @@ public class OrderRepository {
         void onResult(long orderId);
     }
 
+    public void getLastOrderId(OnOrderIdResultCallback callback) {
+        executor.execute(() -> {
+            try {
+                long lastId = orderDao.getLastOrderIdSync();
+                callback.onResult(lastId);
+            } catch (Exception e) {
+                Log.e(TAG, "Error getting last order ID", e);
+                callback.onResult(0); // Default to 0 on error
+            }
+        });
+    }
+
     public interface OnProductResultCallback {
         void onResult(ProductEntity product);
     }

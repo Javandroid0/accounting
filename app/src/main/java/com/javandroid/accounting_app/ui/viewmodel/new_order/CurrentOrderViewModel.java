@@ -222,6 +222,25 @@ public class CurrentOrderViewModel extends AndroidViewModel {
         return Math.max(0.0, total); // Ensure non-negative
     }
 
+    public void initializeNewOrderId() {
+        OrderStateRepository currentRepo = getCurrentStateRepository();
+        OrderEntity currentOrder = currentRepo.getCurrentOrderValue();
+
+        // Only proceed if the order is new (ID <= 0)
+        if (currentOrder != null && currentOrder.getOrderId() <= 0) {
+            orderRepository.getLastOrderId(lastId -> {
+                // We are on a background thread, so we need to get the latest order state again
+                OrderEntity latestOrderState = currentRepo.getCurrentOrderValue();
+                if (latestOrderState != null) {
+                    long nextId = lastId + 1;
+                    latestOrderState.setOrderId(nextId);
+                    currentRepo.setCurrentOrder(latestOrderState); // Update the state repository
+                    Log.d(TAG, "Initialized new order with temporary ID: " + nextId);
+                }
+            });
+        }
+    }
+
 
     public void confirmOrder() {
         OrderStateRepository currentRepo = getCurrentStateRepository();

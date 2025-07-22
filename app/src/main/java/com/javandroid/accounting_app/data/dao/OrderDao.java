@@ -63,4 +63,7 @@ public interface OrderDao {
 
     @Query("SELECT * FROM orders ORDER BY customerId ASC, orderId DESC")
     LiveData<List<OrderEntity>> getAllOrdersSortedByCustomer();
+
+    @Query("SELECT MAX(orderId) FROM orders")
+    long getLastOrderIdSync();
 }
