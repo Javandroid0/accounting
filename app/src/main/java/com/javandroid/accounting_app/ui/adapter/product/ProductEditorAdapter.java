@@ -1,11 +1,13 @@
 package com.javandroid.accounting_app.ui.adapter.product;
 
+import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -13,6 +15,7 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.javandroid.accounting_app.R;
 import com.javandroid.accounting_app.data.model.ProductEntity;
 
@@ -27,6 +30,8 @@ public class ProductEditorAdapter extends ListAdapter<ProductEntity, ProductEdit
         void onSaveClick(ProductEntity product);
 
         void onDeleteClick(ProductEntity product);
+
+        void onImageClick(ProductEntity product, ImageView imageView);
     }
 
     private final OnProductInteractionListener listener;
@@ -75,9 +80,11 @@ public class ProductEditorAdapter extends ListAdapter<ProductEntity, ProductEdit
         EditText etSellPrice, etBuyPrice, etQuantity;
         ImageButton btnDelete;
         Button btnSaveItem;
+        ImageView ivProductImage;
 
         ProductViewHolder(@NonNull View itemView) {
             super(itemView);
+            ivProductImage = itemView.findViewById(R.id.iv_product_image);
             tvProductName = itemView.findViewById(R.id.tv_product_name);
             etQuantity = itemView.findViewById(R.id.et_quantity);
             etSellPrice = itemView.findViewById(R.id.et_price);
@@ -105,6 +112,20 @@ public class ProductEditorAdapter extends ListAdapter<ProductEntity, ProductEdit
                 }
             });
 
+
+            if (product.getImagePath() != null && !product.getImagePath().isEmpty()) {
+                Glide.with(itemView.getContext())
+                        .load(Uri.parse(product.getImagePath()))
+                        .into(ivProductImage);
+            } else {
+                ivProductImage.setImageResource(R.drawable.ic_launcher_background);
+            }
+
+            ivProductImage.setOnClickListener(v -> {
+                if (isEditing) {
+                    listener.onImageClick(product, ivProductImage);
+                }
+            });
             btnDelete.setOnClickListener(v -> listener.onDeleteClick(product));
 
             btnSaveItem.setOnClickListener(v -> {
@@ -116,6 +137,7 @@ public class ProductEditorAdapter extends ListAdapter<ProductEntity, ProductEdit
                     double newStock = Double.parseDouble(etQuantity.getText().toString());
 
                     ProductEntity updatedProduct = new ProductEntity(name, barcode);
+                    updatedProduct.setImagePath(product.getImagePath());
                     updatedProduct.setProductId(product.getProductId());
                     updatedProduct.setBuyPrice(newBuyPrice);
                     updatedProduct.setSellPrice(newSellPrice);

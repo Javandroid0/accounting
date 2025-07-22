@@ -26,6 +26,8 @@ public class ProductEntity {
     @PrimaryKey(autoGenerate = true)
     public long productId;
 
+    public String imagePath;
+
     public double getSellPrice() {
         return sellPrice;
     }
@@ -74,6 +76,14 @@ public class ProductEntity {
 
     public void setStock(double stock) {
         this.stock = stock;
+    }
+
+    public String getImagePath() {
+        return imagePath;
+    }
+
+    public void setImagePath(String imagePath) {
+        this.imagePath = imagePath;
     }
 
 }

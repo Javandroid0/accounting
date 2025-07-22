@@ -1,10 +1,13 @@
 package com.javandroid.accounting_app.ui.fragment.product;
 
+import android.Manifest;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
@@ -15,23 +18,28 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.javandroid.accounting_app.R;
 import com.javandroid.accounting_app.data.model.ProductEntity;
 import com.javandroid.accounting_app.ui.adapter.product.ProductEditorAdapter;
 import com.javandroid.accounting_app.ui.viewmodel.product.ProductViewModel;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -47,6 +55,13 @@ public class ProductEditorFragment extends Fragment implements ProductEditorAdap
     private com.google.android.material.chip.Chip chipSortByStock;
     private List<ProductEntity> masterProductList = new ArrayList<>();
     private final Handler mainThreadHandler = new Handler(Looper.getMainLooper());
+
+    private ActivityResultLauncher<Uri> takePictureLauncher;
+    private ActivityResultLauncher<String> requestPermissionLauncher;
+
+    private Uri tempImageUri;
+    private ProductEntity currentProductForImage;
+    private ImageView currentImageViewForImage;
 
 
     @Override
@@ -74,6 +89,31 @@ public class ProductEditorFragment extends Fragment implements ProductEditorAdap
                                 });
                             }).start();
                         }
+                    }
+                });
+
+        takePictureLauncher = registerForActivityResult(
+                new ActivityResultContracts.TakePicture(),
+                success -> {
+                    if (success) {
+                        if (currentProductForImage != null && tempImageUri != null) {
+                            currentProductForImage.setImagePath(tempImageUri.toString());
+                            if (currentImageViewForImage != null) {
+                                Glide.with(requireContext())
+                                        .load(tempImageUri)
+                                        .into(currentImageViewForImage);
+                            }
+                        }
+                    }
+                });
+
+        requestPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                isGranted -> {
+                    if (isGranted) {
+                        launchCamera();
+                    } else {
+                        Toast.makeText(getContext(), "Camera permission is required to take pictures.", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
@@ -169,6 +209,25 @@ public class ProductEditorFragment extends Fragment implements ProductEditorAdap
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    @Override
+    public void onImageClick(ProductEntity product, ImageView imageView) {
+        currentProductForImage = product;
+        currentImageViewForImage = imageView;
+        if (ContextCompat.checkSelfPermission(
+                requireContext(), Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED) {
+            launchCamera();
+        } else {
+            requestPermissionLauncher.launch(Manifest.permission.CAMERA);
+        }
+    }
+
+    private void launchCamera() {
+        File photoFile = new File(requireContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES), "product_" + System.currentTimeMillis() + ".jpg");
+        tempImageUri = FileProvider.getUriForFile(requireContext(), requireContext().getApplicationContext().getPackageName() + ".provider", photoFile);
+        takePictureLauncher.launch(tempImageUri);
     }
 
     private void filterList(String query) {

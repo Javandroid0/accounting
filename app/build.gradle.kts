@@ -51,6 +51,8 @@ dependencies {
     implementation(libs.mockito.core)
     implementation(libs.androidx.core.testing)
     implementation(libs.mockito.inline)
+    implementation(libs.glide)
+    annotationProcessor(libs.compiler)
     annotationProcessor(libs.room.compiler)
 //    implementation(libs.room.compiler)
     implementation(libs.room.runtime)

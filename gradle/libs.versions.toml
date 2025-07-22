@@ -19,9 +19,11 @@ navigationUi = "2.8.9"
 escposThermalprinterAndroid = "3.3.0"
 workRuntime = "2.10.1"
 workRuntimeVersion = "2.10.1"
-mockitoCore = "5.17.0"
+mockitoCore = "5.18.0"
 coreTesting = "2.2.0"
 mockitoInline = "5.2.0"
+glide = "5.0.0-rc01"
+compiler = "5.0.0-rc01"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -47,6 +49,8 @@ androidx-work-runtime = { group = "androidx.work", name = "work-runtime", versio
 mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockitoCore" }
 androidx-core-testing = { group = "androidx.arch.core", name = "core-testing", version.ref = "coreTesting" }
 mockito-inline = { group = "org.mockito", name = "mockito-inline", version.ref = "mockitoInline" }
+glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
+compiler = { group = "com.github.bumptech.glide", name = "compiler", version.ref = "compiler" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
